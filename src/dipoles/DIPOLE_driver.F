@@ -22,6 +22,7 @@
 ! MA 02111-1307, USA or visit http://www.gnu.org/copyleft/gpl.txt.
 !
 subroutine DIPOLE_driver(Xen,Xk,Xq,X,Dip)
+! test
  !
  ! Presently there exist two gauges: (i ) the length   which uses <r>            
  !                                   (ii) the velocity which uses <v>=<p-[x,Vnl]> 
