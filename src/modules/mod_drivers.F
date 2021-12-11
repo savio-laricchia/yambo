@@ -1,24 +1,24 @@
 !
-!        Copyright (C) 2000-2020 the YAMBO team
+!        Copyright (C) 2000-2021 the YAMBO team
 !              http://www.yambo-code.org
 !
 ! Authors (see AUTHORS file for details): AM
-! 
-! This file is distributed under the terms of the GNU 
-! General Public License. You can redistribute it and/or 
-! modify it under the terms of the GNU General Public 
-! License as published by the Free Software Foundation; 
+!
+! This file is distributed under the terms of the GNU
+! General Public License. You can redistribute it and/or
+! modify it under the terms of the GNU General Public
+! License as published by the Free Software Foundation;
 ! either version 2, or (at your option) any later version.
 !
-! This program is distributed in the hope that it will 
-! be useful, but WITHOUT ANY WARRANTY; without even the 
-! implied warranty of MERCHANTABILITY or FITNESS FOR A 
-! PARTICULAR PURPOSE.  See the GNU General Public License 
+! This program is distributed in the hope that it will
+! be useful, but WITHOUT ANY WARRANTY; without even the
+! implied warranty of MERCHANTABILITY or FITNESS FOR A
+! PARTICULAR PURPOSE.  See the GNU General Public License
 ! for more details.
 !
-! You should have received a copy of the GNU General Public 
-! License along with this program; if not, write to the Free 
-! Software Foundation, Inc., 59 Temple Place - Suite 330,Boston, 
+! You should have received a copy of the GNU General Public
+! License along with this program; if not, write to the Free
+! Software Foundation, Inc., 59 Temple Place - Suite 330,Boston,
 ! MA 02111-1307, USA or visit http://www.gnu.org/copyleft/gpl.txt.
 !
 module drivers
@@ -33,12 +33,12 @@ module drivers
  !
  logical :: l_setup              =.FALSE.
  logical :: l_rim                =.FALSE.
+ logical :: l_RIM_W              =.FALSE.
  logical :: l_col_cut            =.FALSE.
  logical :: l_acfdt              =.FALSE.
  !
- ! Real Time 
+ ! Real Time
  !
- logical :: l_photolum           =.FALSE.
  logical :: l_real_time          =.FALSE.
  logical :: l_sc_run             =.FALSE.
  logical :: l_sc_electric        =.FALSE.
@@ -46,21 +46,24 @@ module drivers
  logical :: l_sc_magnetic        =.FALSE.
  logical :: l_eval_collisions    =.FALSE.
  logical :: l_use_collisions     =.FALSE.
- logical :: l_nl_optics          =.FALSE.  
+ logical :: l_nl_optics          =.FALSE.
+ logical :: l_nl_p_and_p         =.FALSE.
  !
  ! The self-energy correlation "kind"
  !
  logical :: l_elphoton_corr      =.FALSE.
  logical :: l_elel_corr          =.FALSE.
  logical :: l_elph_corr          =.FALSE.
+ logical :: l_phel_corr          =.FALSE.
  !
  ! The non-eq. self-energy scattering "kind"
  !
  logical :: l_elphoton_scatt     =.FALSE.
  logical :: l_elel_scatt         =.FALSE.
  logical :: l_elph_scatt         =.FALSE.
+ logical :: l_phel_scatt         =.FALSE.
  !
- ! Electron-Phonon specific flags 
+ ! Electron-Phonon specific flags
  !
  logical :: l_elph_Hamiltonian   =.FALSE.
  !
@@ -81,8 +84,6 @@ module drivers
  logical :: l_dipoles            =.FALSE.
  logical :: l_bse                =.FALSE.
  logical :: l_bss                =.FALSE.
- logical :: l_kerr               =.FALSE.
- logical :: l_anomalous_Hall     =.FALSE.
  !
  ! ... and the kernel
  !
@@ -94,9 +95,7 @@ module drivers
  logical :: l_lrc_fxc            =.FALSE.
  logical :: l_pf_fxc             =.FALSE.
  logical :: l_td_hf              =.FALSE.
- logical :: l_W_eh               =.FALSE.
- logical :: l_W_eh_diag          =.FALSE.
- logical :: l_W_eh_cpl           =.FALSE.
+ logical :: l_td_sex             =.FALSE.
  !
  ! XC kinds (Potential)
  !

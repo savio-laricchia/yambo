@@ -1,5 +1,5 @@
 !
-!        Copyright (C) 2000-2020 the YAMBO team
+!        Copyright (C) 2000-2021 the YAMBO team
 !              http://www.yambo-code.org
 !
 ! Authors (see AUTHORS file for details): AM, DS
@@ -24,12 +24,25 @@
 subroutine INTERPOLATION_driver_seed(operation,ID,dims,SEED_k,SEED_E,SEED_RT,SEED_QP,SEED_R3,&
 &                                    NEAREST,QUIET,SERIAL)
  !
- ! BOLTZ structure:
+ !  INTERPOLATION_driver_seed at present interpolates only from a single grid, not from both
+ !  Defines the coefficients to be used for the interpolation starting from SEED_k
+ !  INTERPOLATION_BZ_coeff is the core of the interpolation
  !
- ! call INTERPOLATION_BZ_setup
- ! call INTERPOLATION_coefficients
- !  !
- !  .call INTERPOLATION_BZ_coeff
+ !  It is usally called for interpolation from the standard grid,
+ !  In ypp/real_time  - RT_occ_bands_interpolation
+ !                    - RT_dos_time_plot.F
+ !                    - RT_G_two_times_interp_and_plot
+ !  it is used to interpolate from the RT_k grid to a path
+ !  However this is done outside the interpolation driver giving the whole k grid via SEED_k 
+ !
+ !  INPUT:  SEED_k,Data_initial
+ !  OUTPUT: ID,INTERP_obj(ID)%D,INTERP_obj(ID)%SEED
+ !  - calls INTERPOLATION_coefficients
+ !    INPUT: ID,SEED_k,INTERP_obj(ID)%SEED
+ !    - transfer SEED or energies to DATA
+ !    - calls INTERPOLATION_BZ_coeff
+ !    INPUT:  ID,DATA(nval,nk)
+ !    OUTPUT: coeff(nshells,nval)
  !
  use pars,                 ONLY:SP
  use real_time,            ONLY:RT_t
@@ -40,7 +53,7 @@ subroutine INTERPOLATION_driver_seed(operation,ID,dims,SEED_k,SEED_E,SEED_RT,SEE
  use interpolate,          ONLY:INTERP_obj,INTERPOLATION_coefficients,max_interpls,&
 &                               l_INTERP_f,l_INTERP_E,l_INTERP_dE,l_INTERP_W,INTERPOLATE_is_serial,&
 &                               INTERPOLATE_initialized,l_INTERP_Z,INTERP_mode,INTERPOLATE_is_quiet
- use IO_m,                 ONLY:IO_and_Messaging_switch
+ use IO_int,               ONLY:IO_and_Messaging_switch
  !
  implicit none
  !

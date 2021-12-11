@@ -1,5 +1,5 @@
 !
-!        Copyright (C) 2000-2020 the YAMBO team
+!        Copyright (C) 2000-2021 the YAMBO team
 !              http://www.yambo-code.org
 !
 ! Authors (see AUTHORS file for details): AM
@@ -21,14 +21,14 @@
 ! Software Foundation, Inc., 59 Temple Place - Suite 330,Boston, 
 ! MA 02111-1307, USA or visit http://www.gnu.org/copyleft/gpl.txt.
 !
-subroutine X_pre_setup(Xen,X)
+subroutine X_pre_setup(Xen,Xk,X)
  !
  use pars,          ONLY:SP
  use X_m,           ONLY:X_t,use_X_DbGd,X_DbGd_nkpts,l_X_terminator,X_use_lin_sys,&
 &                        X_use_gpu,Chi_linalg_mode,X_ng
- use electrons,     ONLY:levels,BZ_DbGd_nbands,BZ_DbGd_tot_nk_levels,DbGd_is_symmetry_expanded
+ use electrons,     ONLY:levels,n_sp_pol
  use drivers,       ONLY:l_bs_fxc,l_col_cut,Finite_Tel,l_cohsex,l_rt_carriers_in_use
- use R_lattice,     ONLY:nqibz
+ use R_lattice,     ONLY:nqibz,bz_samp
  use QP_m,          ONLY:COHSEX_use_empties
  use TDDFT,         ONLY:FXC_n_g_corr
  use interfaces,    ONLY:eval_G_minus_G
@@ -39,7 +39,8 @@ subroutine X_pre_setup(Xen,X)
  implicit none
  !
  type(X_t)    :: X 
- type(levels) ::Xen
+ type(bz_samp):: Xk
+ type(levels) :: Xen
  ! 
  ! Work Space
  !
@@ -54,25 +55,20 @@ subroutine X_pre_setup(Xen,X)
  ! In these two lines I ensure the at least all the metallic
  ! bands are included in the X summation
  !
- if (X%ib(1)>Xen%nbf+1) X%ib(1)=Xen%nbf+1
- if (X%ib(2)<Xen%nbm)   X%ib(2)=Xen%nbm
+ if (X%ib(1)>minval(Xen%nbf)+1) X%ib(1)=minval(Xen%nbf)+1
+ if (X%ib(2)<maxval(Xen%nbm)  ) X%ib(2)=maxval(Xen%nbm)
  !
  ! Other checks
  !
- if (X%ib(1)<0.or.X%ib(1)>Xen%nbm.or.X%ib(2)<X%ib(1)) X%ib(1)=1
- if (X%ib(2)>Xen%nb.or.X%ib(2)<Xen%nbf)               X%ib(2)=Xen%nb
+ if (X%ib(1)<0.or.X%ib(1)>maxval(Xen%nbm).or.X%ib(2)<X%ib(1))  X%ib(1)=1
+ if (X%ib(2)>Xen%nb.or.X%ib(2)<minval((/Xen%nbf(:n_sp_pol)/))) X%ib(2)=Xen%nb
  !
  ! Here I set up the Double Grid flag to (for example) skip the coarse 
  ! grid generator in the Xo calculation
  !
- use_X_DbGd=BZ_DbGd_nbands>0.and.X%ib(1)<BZ_DbGd_nbands.and.(.not.l_bs_fxc)
+ use_X_DbGd=Xen%FG%nb/=0.and.X%ib(1)<Xen%FG%nb.and.(.not.l_bs_fxc)
  !
- if (use_X_DbGd.and.DbGd_is_symmetry_expanded) then
-   X_DbGd_nkpts=BZ_DbGd_tot_nk_levels
- else if (use_X_DbGd.and..not.DbGd_is_symmetry_expanded) then
-   use_X_DbGd=.FALSE.
-   call warning("Found a Double Grid not symmetry expanded. This is incompatible with the current runlevel")
- endif
+ if (use_X_DbGd) X_DbGd_nkpts=Xk%nbz+Xk%FGbz%N
  !
  ! COH check: when the X terminator is used or the empty bands are NOT used the
  ! response function is accessed in G-G' mode. Here I ensure that all G-G' are in the

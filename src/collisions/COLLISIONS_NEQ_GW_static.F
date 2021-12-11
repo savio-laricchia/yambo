@@ -1,5 +1,5 @@
 !
-!        Copyright (C) 2000-2020 the YAMBO team
+!        Copyright (C) 2000-2021 the YAMBO team
 !              http://www.yambo-code.org
 !
 ! Authors (see AUTHORS file for details): AM DS
@@ -29,15 +29,17 @@ subroutine COLLISIONS_NEQ_GW_static(X,Xk,E,k,q,Xw)
  use frequency,     ONLY:w_samp
  use electrons,     ONLY:levels
  use LIVE_t,        ONLY:live_timing
- use parallel_m,    ONLY:PP_redux_wait,PAR_PLASMA_index,&
-&                        PAR_IND_Q,PAR_Q_index,PAR_COM_QP_A2A,PAR_IND_Plasma,&
-&                        PAR_nQ,PAR_COM_G_b_A2A,PAR_COM_Q_INDEX
+ use parallel_int,  ONLY:PP_redux_wait
+ use parallel_m,    ONLY:PAR_PLASMA_index,&
+&                        PAR_IND_Q_bz,PAR_Q_bz_index,PAR_COM_QP_A2A,PAR_IND_Plasma,&
+&                        PAR_nQ_bz,PAR_COM_G_b_A2A,PAR_COM_G_b_index_global,PAR_COM_Q_index
  use collision_el,  ONLY:elemental_collision,elemental_collision_free,elemental_collision_alloc
  use collision_ext, ONLY:COLLISIONS_parallel_SC_structure,&
 &                        GW_NEQ_COLL_element,COLL_bands,GW_NEQ_collisions
  use plasma,        ONLY:EH_gas
  use timing_m,      ONLY:timing
- use IO_m,          ONLY:io_control,OP_RD_CL,REP,VERIFY,NONE,Io_and_Messaging_switch,io_COLLs
+ use IO_int,        ONLY:io_control,Io_and_Messaging_switch
+ use IO_m,          ONLY:OP_RD_CL,REP,VERIFY,NONE,io_COLLs
  use X_m,           ONLY:X_alloc,X_mat,X_t
  use interfaces,    ONLY:WF_load
  use wave_func,     ONLY:WF
@@ -54,14 +56,14 @@ subroutine COLLISIONS_NEQ_GW_static(X,Xk,E,k,q,Xw)
  !
  ! Work Space
  !
- integer                  ::i_coll1,i_coll2,i1,i2,iqbz,iqibz,alloc_err,iqs,&
+ integer                  ::i_coll1,i_coll2,last_coll,i1,i2,iqbz,iqibz,alloc_err,iqs,&
 &                           i_n,i_k,i_k_s,i_k_sp,i_J,i_J_mem,PAR_NC_local,&
 &                           i_np,i_kmq,i_kmq_bz,i_kmq_s,i_kmq_sp,i_kmq_G0,&
 &                           i_m,i_p,i_p_bz,i_p_s,i_p_sp,i_p_star,PAR_nPLASMA_step,&
 &                           i_mp,i_pmq,i_pmq_s,i_pmq_sp,i_pmq_G0,i_pmq_bz,i_q_mem,i_coll1_mem
  complex(SP), allocatable ::EM1s(:,:)
  type(elemental_collision)::isc,iscp
- integer          ::io_err,ID
+ integer          ::io_err,ID_X,ID_GW
  integer, external::io_X
  complex(SP)      ::local_rhotw(X%ng),pre_factor
  !
@@ -90,8 +92,8 @@ subroutine COLLISIONS_NEQ_GW_static(X,Xk,E,k,q,Xw)
  !
  ! Plasmon-Pole/Static interaction DB I/O
  !
- call io_control(ACTION=OP_RD_CL,COM=REP,SEC=(/1,2/),MODE=VERIFY,ID=ID)
- io_err=io_X(X,Xw,ID)
+ call io_control(ACTION=OP_RD_CL,COM=REP,SEC=(/1,2/),MODE=VERIFY,ID=ID_X)
+ io_err=io_X(X,Xw,ID_X)
  !
  if (io_err<0) call error('Incomplete and/or broken PPA/Static diel. fun. database')
  !
@@ -117,6 +119,7 @@ subroutine COLLISIONS_NEQ_GW_static(X,Xk,E,k,q,Xw)
    PAR_NC_local=0
    do i_coll1=1,GW_NEQ_collisions%N
      if (.not.GW_NEQ_collisions%PAR_IND%element_1D(i_coll1)) cycle
+     last_coll=i_coll1
      if (GW_NEQ_collisions%IO_status(i_coll1)/=-1) cycle
      PAR_NC_local=PAR_NC_local+1
    enddo
@@ -124,11 +127,12 @@ subroutine COLLISIONS_NEQ_GW_static(X,Xk,E,k,q,Xw)
  !
  PAR_nPLASMA_step =max(1,count(PAR_IND_Plasma%element_1D(:))/100)
  !
- call live_timing("Collisions",PAR_NC_local*PAR_nQ)
+ call live_timing("Collisions",PAR_NC_local*PAR_nQ_bz)
  !
  ! Write Database Header 
  !
- if (io_COLLs) call COLLISIONS_linearize_and_IO("GW_NEQ",0,GW_NEQ_collisions,GW_NEQ_COLL_element)
+ if (io_COLLs) call COLLISIONS_linearize_and_IO("GW_NEQ",0,last_coll,GW_NEQ_collisions,&
+         &                               GW_NEQ_COLL_element,ID_GW,PAR_COM_G_b_index_global%COMM)
  !
  do i_coll1=1,GW_NEQ_collisions%N
    !
@@ -141,8 +145,8 @@ subroutine COLLISIONS_NEQ_GW_static(X,Xk,E,k,q,Xw)
      GW_NEQ_COLL_element(1)%v3_r=rZERO
    endif
    !
-   call io_control(ACTION=OP_RD_CL,COM=NONE, SEC=(/1/),ID=ID)
-   io_err=io_X(X,Xw,ID)
+   call io_control(ACTION=OP_RD_CL,COM=NONE, SEC=(/1/),ID=ID_X)
+   io_err=io_X(X,Xw,ID_X)
    !
    do iqbz=1,q%nbz 
      !
@@ -160,8 +164,8 @@ subroutine COLLISIONS_NEQ_GW_static(X,Xk,E,k,q,Xw)
        !
        call Io_and_Messaging_switch("-fragments_IO_log")
        !
-       call io_control(ACTION=OP_RD_CL,COM=NONE, SEC=(/2*iqibz,2*iqibz+1/),ID=ID)
-       io_err=io_X(X,Xw,ID)
+       call io_control(ACTION=OP_RD_CL,COM=NONE, SEC=(/2*iqibz,2*iqibz+1/),ID=ID_X)
+       io_err=io_X(X,Xw,ID_X)
        !
        call Io_and_Messaging_switch("+fragments_IO_log")
        !
@@ -184,8 +188,8 @@ subroutine COLLISIONS_NEQ_GW_static(X,Xk,E,k,q,Xw)
        !
      endif
      !
-     if (.not.PAR_IND_Q%element_1D(iqbz)) cycle
-     i_q_mem=PAR_Q_index(iqbz)
+     if (.not.PAR_IND_Q_bz%element_1D(iqbz)) cycle
+     i_q_mem=PAR_Q_bz_index(iqbz)
      !
      ! Scattering geometry (I)
      !=========================
@@ -298,7 +302,8 @@ subroutine COLLISIONS_NEQ_GW_static(X,Xk,E,k,q,Xw)
      endif
    endif
    !
-   if (io_COLLs) call COLLISIONS_linearize_and_IO("GW_NEQ",i_coll1,GW_NEQ_collisions,GW_NEQ_COLL_element)
+   if (io_COLLs) call COLLISIONS_linearize_and_IO("GW_NEQ",i_coll1,last_coll,GW_NEQ_collisions,&
+   &                                               GW_NEQ_COLL_element,ID_GW,PAR_COM_G_b_index_global%COMM)
    !
  enddo
  !

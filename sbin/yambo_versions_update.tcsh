@@ -37,31 +37,22 @@ endif
 # Get current version & revision
 #
 set repo=`git remote -v | grep push`
-set gpl="yes"
-if ( "$repo" =~ *yambo-devel* ) set gpl="no"
 #
-set dummy="SVERSION="
-set version_old=`cat config/version.m4 | grep $dummy | $awk '{gsub("="," ");split($0,frags);gsub("\"","",frags[2]);print frags[2]}'`
-set dummy="SSUBVERSION="
-set subver_old=`cat config/version.m4 | grep $dummy | $awk '{gsub("="," ");split($0,frags);gsub("\"","",frags[2]);print frags[2]}'`
-set dummy="SPATCHLEVEL="
-set patch_old=`cat config/version.m4 | grep $dummy | $awk '{gsub("="," ");split($0,frags);gsub("\"","",frags[2]);print frags[2]}'`
-set dummy="SREVISION="
-set revision_old=`cat config/version.m4 | grep $dummy | $awk '{gsub("="," ");split($0,frags);gsub("\"","",frags[2]);print frags[2]}'`
-set dummy="SHASH="
-set hash_old=`cat config/version.m4 | grep $dummy | $awk '{gsub("="," ");split($0,frags);gsub("\"","",frags[2]);print frags[2]}'`
-set GPL_revision_old=$revision_old
+set dummy="_VERSION"
+set version_old=`cat include/driver/version.h | grep $dummy | $awk '{split($0,frags);print frags[3]}'`
+set dummy="_SUBVERSION"
+set subver_old=`cat include/driver/version.h | grep $dummy | $awk '{split($0,frags);print frags[3]}'`
+set dummy="_PATCHLEVEL"
+set patch_old=`cat include/driver/version.h | grep $dummy | $awk '{split($0,frags);print frags[3]}'`
+set dummy="_REVISION"
+set revision_old=`cat include/driver/version.h | grep $dummy | $awk '{split($0,frags);print frags[3]}'`
+set dummy="_HASH"
+set hash_old=`cat include/driver/version.h | grep $dummy | $awk '{gsub("\""," ");split($0,frags);print frags[3]}'`
 #
-if ( "$gpl" == "no" ) then
-  set dummy1=`git rev-list --count HEAD`
-  @ dummy1= $dummy1 + 10000 
-  if ( "$dummy1" >= "$revision_old" ) set revision_HEAD=`echo $dummy1`
-  if ( "$dummy1" <  "$revision_old" ) set revision_HEAD=`echo $revision_old`
-else
-  set dummy=`git rev-list --all --count HEAD`
-  set revision_HEAD=`echo $dummy`
-  @ revision_HEAD= $revision_HEAD + 74
-endif
+set dummy1=`git rev-list --count HEAD`
+@ dummy1= $dummy1 + 10000 
+if ( "$dummy1" >= "$revision_old" ) set revision_HEAD=`echo $dummy1`
+if ( "$dummy1" <  "$revision_old" ) set revision_HEAD=`echo $revision_old`
 set hash_HEAD=`git rev-parse --short HEAD`
 #
 echo "Detected version" $version_old"."$subver_old"."$patch_old "Rev.(CURRENT)" $revision_old "(HEAD)" $revision_HEAD "Hash" $hash_old
@@ -71,8 +62,7 @@ echo "Detected version" $version_old"."$subver_old"."$patch_old "Rev.(CURRENT)" 
 set version_new = $version_old
 set subver_new = $subver_old
 set patch_new = $patch_old
-if ( "$gpl" == "no"  ) set revision_new = $revision_old
-if ( "$gpl" == "yes" ) set revision_new = $GPL_revision_old
+set revision_new = $revision_old
 set hash_new = $hash_old
 #
 if ( "$argv[1]" == "v" ) then
@@ -96,13 +86,8 @@ endif
 #
 if ( "$argv[1]" != "save" ) then
   echo 
-  if ( "$gpl" == "yes" ) then
-    echo "v."$version_old"."$subver_old"."$patch_old " r."$GPL_revision_old " => " \
-         "v."$version_new"."$subver_new"."$patch_new " r."$revision_new
-  else
-    echo "v."$version_old"."$subver_old"."$patch_old " r."$revision_old " h."$hash_old" => " \
-         "v."$version_new"."$subver_new"."$patch_new " r."$revision_new " h."$hash_new""
-  endif
+  echo "v."$version_old"."$subver_old"."$patch_old " r."$revision_old " h."$hash_old" => " \
+       "v."$version_new"."$subver_new"."$patch_new " r."$revision_new " h."$hash_new""
   echo 
 else
  set source_dir="yambo-"$version_new"."$subver_new"."$patch_new
@@ -110,7 +95,6 @@ else
  echo "archive of " $source_dir " is " "../"$file_name".gz"
 endif
 #
-
 set update = 0
 if ( "$argv[1]" == "v" || "$argv[1]" == "s" || "$argv[1]" == "p" ) then
   set update = 1
@@ -124,56 +108,37 @@ endif
 #
 set use_rev_old=$revision_old
 set use_rev_new=$revision_new
-if ( "$gpl" == "yes" ) then
-  set use_rev_old=$GPL_revision_old
-  set use_rev_new=$revision_new
-endif
 #
-cat << EOF > ss.awk
+if ( $version_old != $version_new ) then
+cat << EOF > configure.awk
 {
- gsub("$version_old.$subver_old.$patch_old",
-      "$version_new.$subver_new.$patch_new",\$0)
- gsub("h.$hash_old","h.$hash_new",\$0)
- gsub("r.$revision_old","r.$revision_new",\$0)
- gsub("r.$use_rev_old","r.$use_rev_new",\$0)
- #version
- gsub("SVERSION=\"$version_old\""  ,"SVERSION=\"$version_new\""  ,\$0)
- gsub("SSUBVERSION=\"$subver_old\"","SSUBVERSION=\"$subver_new\""   ,\$0)
- gsub("SPATCHLEVEL=\"$patch_old\"","SPATCHLEVEL=\"$patch_new\"",\$0)
- #revision
- gsub("SREVISION=\"$use_rev_old\"" ,"SREVISION=\"$use_rev_new\"" ,\$0)
- gsub("BASE_REV=\"$use_rev_old\"" ,"BASE_REV=\"$use_rev_new\"" ,\$0)
- gsub("SHASH=\"$hash_old\""        ,"SHASH=\"$hash_new\""        ,\$0)
+ gsub("version $version_old","version $version_new",\$0)
+ print \$0
+}
+EOF
+endif
+cat << EOF > version.awk
+{
+ gsub("_VERSION $version_old"  ,"_VERSION $version_new"  ,\$0)
+ gsub("_SUBVERSION $subver_old","_SUBVERSION $subver_new",\$0)
+ gsub("_PATCHLEVEL $patch_old" ,"_PATCHLEVEL $patch_new", \$0)
+ gsub("_REVISION $use_rev_old" ,"_REVISION $use_rev_new" ,\$0)
+ gsub("_HASH \"$hash_old\""    ,"_HASH \"$hash_new\"" ,   \$0)
  print \$0 > "NEW"
 }
 EOF
 #
-#
 if ( "$argv[1]" != "save" ) then
-  $awk -f ss.awk ./config/version.m4
-  mv NEW ./config/version.m4
-  if ( "$gpl" == "no" ) then
-    $awk -f ss.awk ./config/version.m4_gpl
-    mv NEW ./config/version.m4_gpl
-  endif
-  $awk -f ss.awk configure
-  mv NEW configure
-  chmod a+x configure
+ if (  $version_old != $version_new ) then
+   $awk -f configure.awk configure
+   mv NEW configure
+   chmod a+x configure
+ endif
+ $awk -f version.awk include/driver/version.h
+ mv NEW include/driver/version.h
 endif
-rm -fr ss.awk
+rm -fr version.awk configure.awk
 #
-# Backup
-#
-#if ( "$argv[1]" == "save" ) then
-# cd ..
-# echo -n " Tar ..."
-# ln -s trunk $source_dir
-# tar -chf $file_name $source_dir
-# echo " done"
-# gzip $file_name
-# rm -f $source_dir
-#endif
-
 exit 0
 
 HELP:

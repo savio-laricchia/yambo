@@ -1,5 +1,5 @@
 !
-!        Copyright (C) 2000-2020 the YAMBO team
+!        Copyright (C) 2000-2021 the YAMBO team
 !              http://www.yambo-code.org
 !
 ! Authors (see AUTHORS file for details): AM
@@ -23,9 +23,9 @@
 !
 subroutine PARALLEL_global_defaults(ENVIRONMENT)
  !
- use parallel_m,    ONLY:PARALLEL_n_structures_active,PARALLEL_CPU_used,&
+ use parallel_m,    ONLY:PARALLEL_n_structures_active,PARALLEL_CPU_used, &
 &                        ncpu,CPU_structure,i_PAR_structure,PARALLEL_ENV_uses_default,PARALLEL_CPU_role
- use interfaces,    ONLY:PARALLEL_live_message
+ use parallel_int,  ONLY:PARALLEL_live_message
  use stderr,        ONLY:intc
  !
  implicit none
@@ -33,8 +33,8 @@ subroutine PARALLEL_global_defaults(ENVIRONMENT)
  character(*)            :: ENVIRONMENT
  !
  ! Work Space
- ! 
- integer :: i_p,NC,BASIS,n_par_la
+ !
+ integer :: i_p,NC,BASIS,n_par_la,ncpu_now
  !
  ! Is there anything to do?
  !
@@ -61,8 +61,14 @@ subroutine PARALLEL_global_defaults(ENVIRONMENT)
    CPU_structure(i_PAR_structure)%nCPU_lin_algebra_DIAGO=n_par_la
  endif
  !
- if (.not.PARALLEL_ENV_uses_default(i_PAR_structure).and.&
-&    product(PARALLEL_CPU_used(:PARALLEL_n_structures_active))==ncpu) return
+ ncpu_now=product(PARALLEL_CPU_used(:PARALLEL_n_structures_active))
+ if ((.not.PARALLEL_ENV_uses_default(i_PAR_structure)).and.ncpu_now==ncpu) return
+ !
+ if ((.not.PARALLEL_ENV_uses_default(i_PAR_structure)).and.ncpu_now/=ncpu.and.ENVIRONMENT=="BZ_Indexes") then
+   call warning("MPI for BZ indexes is "//trim(intc(ncpu_now))//&
+   &" while number of cores is"//trim(intc(ncpu))//". Assuming expert user.")
+   return
+ endif
  !
  call PARALLEL_live_message(trim(ENVIRONMENT)//' parallel ENVIRONMENT is incomplete. Switching to defaults')
  !
@@ -71,11 +77,15 @@ subroutine PARALLEL_global_defaults(ENVIRONMENT)
  select case(ENVIRONMENT)
    case("DIPOLES")
      call GIMME_a_parallel_proposal(3,(/"v","c","k"/))
+   case("DIPOLES_SHIFTED")
+     call GIMME_a_parallel_proposal(2,(/"c","k"/))
    case("Response_G_space_and_IO","Response_G_space")
      call GIMME_a_parallel_proposal(5,(/"g","v","c","k","q"/))
    case("Real_Time") 
      call GIMME_a_parallel_proposal(4,(/" k"," b","qp"," q"/))
-  case("Non_Linear") 
+   case("Phonon_Self_Energy") 
+     call GIMME_a_parallel_proposal(3,(/"q","k","b"/))
+   case("Non_Linear") 
      call GIMME_a_parallel_proposal(2,(/" w"," k"/))
    case("ScaLapacK") 
      CPU_structure(i_PAR_structure)%ROLE(1)="p"
@@ -86,6 +96,9 @@ subroutine PARALLEL_global_defaults(ENVIRONMENT)
       call GIMME_a_parallel_proposal(3,(/" b","qp"," q"/))
    case("Response_T_space") 
       call GIMME_a_parallel_proposal(2,(/"eh"," k"/))
+   case("BZ_Indexes")
+     CPU_structure(i_PAR_structure)%ROLE(1)="k"
+     CPU_structure(i_PAR_structure)%CPU(1)=ncpu
  end select
  !
  ! Reset the active structures
@@ -119,15 +132,15 @@ subroutine PARALLEL_global_defaults(ENVIRONMENT)
      !
      use stderr,      ONLY:STRING_remove
      use vec_operate, ONLY:sort
-     use parallel_m,  ONLY:PAR_QP_range,PAR_n_bands,PAR_n_c_bands,PAR_n_v_bands,PAR_Q_range,&
+     use parallel_m,  ONLY:PAR_QP_range,PAR_n_bands,PAR_n_c_bands,PAR_n_v_bands,&
 &                          PAR_EH_range,PAR_K_range,PAR_n_freqs,PAR_n_G_vectors,&
-&                          PARALLEL_default_mode,master_cpu
+&                          PARALLEL_default_mode,master_cpu,PAR_Q_ibz_range,PAR_Q_bz_range
      !
      ! "c" -> PAR_n_c_bands(2)-PAR_n_c_bands(1)+1
      ! "v" -> PAR_n_v_bands(2)-PAR_n_v_bands(1)+1
      ! "k" -> PAR_K_range
      ! "b" -> PAR_n_bands(2)-PAR_n_bands(1)+1
-     ! "q" -> PAR_Q_range(2)- PAR_Q_range(1)+1
+     ! "q" -> PAR_Q_ibz_range(2)- PAR_Q_ibz_range(1)+1
      ! "qp"-> PAR_QP_range
      ! "eh"-> PAR_EH_range
      ! "w" -> PAR_n_freqs
@@ -152,7 +165,12 @@ subroutine PARALLEL_global_defaults(ENVIRONMENT)
        if (trim(ch)=="v" ) VALS(i_f)=PAR_n_v_bands(2)-PAR_n_v_bands(1)+1
        if (trim(ch)=="b" ) VALS(i_f)=PAR_n_bands(2)-PAR_n_bands(1)+1
        if (trim(ch)=="k" ) VALS(i_f)=PAR_K_range
-       if (trim(ch)=="q" ) VALS(i_f)=PAR_Q_range(2)-PAR_Q_range(1)+1
+       if (trim(ch)=="q" ) then
+         !
+         if (N_fields==5.or.N_fields==3) VALS(i_f)=PAR_Q_ibz_range(2)-PAR_Q_ibz_range(1)+1
+         if (N_fields==4)                VALS(i_f)=PAR_Q_bz_range(2)-PAR_Q_bz_range(1)+1
+         !
+       endif
        if (trim(ch)=="qp") VALS(i_f)=PAR_QP_range
        if (trim(ch)=="eh") VALS(i_f)=PAR_EH_range
        if (trim(ch)=="w ") VALS(i_f)=PAR_n_freqs
@@ -186,7 +204,7 @@ subroutine PARALLEL_global_defaults(ENVIRONMENT)
          !
          do while (CONDITION)
            !
-           call PARALLEL_global_defaults__define_the_basis(NC,BASIS)
+           call PARALLEL_global_defaults_define_the_basis(NC,BASIS)
            !
            if (all(VALS_sorted<BASIS)) exit sc_loop
            if (BASIS>VALS_sorted(i_v)) exit
@@ -214,7 +232,7 @@ subroutine PARALLEL_global_defaults(ENVIRONMENT)
    !
 end subroutine
 !
-subroutine PARALLEL_global_defaults__define_the_basis(NC,BASIS)
+subroutine PARALLEL_global_defaults_define_the_basis(NC,BASIS)
   implicit none
   integer, intent(in) :: NC
   integer, intent(out):: BASIS

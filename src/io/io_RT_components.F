@@ -1,5 +1,5 @@
 !
-!        Copyright (C) 2000-2020 the YAMBO team
+!        Copyright (C) 2000-2021 the YAMBO team
 !              http://www.yambo-code.org
 !
 ! Authors (see AUTHORS file for details): AM, DS
@@ -26,30 +26,40 @@ integer function io_RT_components(what,ID)
  ! What can be E WF V OBSERV(J,P,M,...) G
  !
  ! def/io_variable_bulk VAR_ID table
- ! VAR__ID=1 is used by io_bulk and should never be used by def/io_variable_bulk
+ ! VAR_ID=1 is used by io_bulk and should never be used by def/io_variable_bulk
  !
  ! ndb.RT_References
- ! 3 Q_WEIGHTS
- ! 4 G_lesser_reference
- ! 10 - 17 REF_lifetimes
+ !  3 Q_WEIGHTS,
+ !  4 G_lesser_reference,
+ !  10 - [..] REF_lifetimes
  !
  ! ndb.RT_carriers
- ! 3 IO_TIME_points
- ! 4 RT_kpt,  5 RT_k_weight,  6 RT_table
- ! 7 - 9 ref_io 
- ! 10 - 21 RT_carriers_objects
+ !  3 IO_TIME_points
+ !  4 RT_kpt,  
+ !  5 RT_k_weight,  
+ !  6 RT_table,
+ !  7 - 9 ref_io,
+ !  10 - [..] RT_carriers_objects,
  !
  ! ndb.RT_G
- ! 3 IO_TIME_points,  2 MEMORY_TIME_POINTs,
- ! 4 dG_lesser, 6 H_rotation
+ !  2 MEMORY_TIME_POINTs,
+ !  3 IO_TIME_points,  
+ !  4 dG_lesser, 
+ !  6 H_rotation
  !
  ! ndb.RT_Obs
- ! 3 IO_TIME_points
- ! 4 Current,  5 Polarization,  6 Spin_magnetization,  7 Orbital Magnetization,  8 A_tot
+ !  3 IO_TIME_points,
+ !  4 Current,  
+ !  5 Polarization,  
+ !  6 Spin_magnetization,  
+ !  7 Orbital Magnetization,  
+ !  8 A_tot
  !
  ! ndb.RT_THETA
- ! 3 IO_TIME_points,  2 MEMORY_TIME_POINTs,
- ! 3 Q_weight,  4 THETA
+ !  3 IO_TIME_points,  
+ !  2 MEMORY_TIME_POINTs,
+ !  3 Q_weight,  
+ !  4 THETA
  !
  !
  use pars,           ONLY:SP,lchlen
@@ -57,17 +67,20 @@ integer function io_RT_components(what,ID)
  use R_lattice,      ONLY:nqbz
  use stderr,         ONLY:intc
  use timing_m,       ONLY:timing
- use IO_m,           ONLY:io_connect,io_disconnect,io_sec,read_is_on,io_fragment,write_is_on,&
+ use IO_int,         ONLY:io_connect,io_disconnect,io_fragment,&
 &                         def_variable_bulk,io_variable_bulk
+ use IO_m,           ONLY:io_sec,read_is_on,write_is_on,io_file
  use real_time,      ONLY:NE_i_time,RT_step,RT_dyn_step, &
 &                         RT_carriers,RT_nbands,G_MEM_steps
  use RT_control,     ONLY:RT_carriers_object,CARR_RT_IO_t,GF_RT_IO_t,OBS_RT_IO_t,CACHE_OBS_steps_now,&
-&                         NE_i_start_time,SAVE_G_history
+&                         SAVE_G_history,CACHE_OBS_steps,RT_DB_file_name
 #if defined _PAR_IO
  use parallel_m,     ONLY:PAR_COM_Xk_ibz_INDEX,mpi_comm_world
 #endif
+#if defined _ELPH_ITERATIVE
+ use RT_iterative,   ONLY:THETA_matrix
+#endif
 #if defined _ELPH
- use real_time,      ONLY:THETA_matrix
  use ELPH,           ONLY:ph_modes
 #endif
  !
@@ -85,9 +98,9 @@ integer function io_RT_components(what,ID)
 #if defined _PAR_IO
  integer               :: local_COMM
 #endif
- integer               :: ik,db_type,T_size,i_start,G_IO_steps
- logical               :: l_G,l_OBS,l_THETA,l_REF,l_carriers,l_JP,l_M,l_D,&
-&                         loading_carr_before_neq,par_IO,first_IO
+ integer               :: ik,db_type,T_size,G_IO_steps,ID_frag
+ logical               :: l_G,l_OBS,l_THETA,l_REF,l_carriers,l_JP_REF,l_JP,l_M,l_D,&
+&                         loading_carr_before_neq,par_IO
  !
  ! DB kind and name...
  !=====================
@@ -98,23 +111,20 @@ integer function io_RT_components(what,ID)
  !
  !...OBSERVABLES
  !===============
+ l_JP_REF     =what=="JP_REF".or.what=="OBSERVABLES_REF"
  l_JP         =what=="JP".or.what=="OBSERVABLES"
  l_M          =what=="M".or.what=="OBSERVABLES"
  l_D          =what=="D".or.what=="OBSERVABLES"
- l_OBS        =l_JP.or.l_M.or.l_D
- !
- ! The restart time is the last time I wrote G and eequal or before the last time I wrote OBS
- if(l_G       ) first_IO=(NE_i_time==  GF_RT_IO_t%last_point).or.(NE_i_time==1).or.  GF_RT_IO_t%last_point< 0
- if(l_OBS     ) first_IO=(NE_i_time== OBS_RT_IO_t%last_point).or.(NE_i_time==1).or. OBS_RT_IO_t%last_point< 0
- ! it is possible that the last time I wrote the carriers was before the restart time of the run
- if(l_carriers) first_IO=(NE_i_time== OBS_RT_IO_t%last_point).or.(NE_i_time==1).or. OBS_RT_IO_t%last_point< 0 .or. &
- &                       (NE_i_time-NE_i_start_time)<=CARR_RT_IO_t%INTERVAL_steps ! (NE_i_time==CARR_RT_IO_t%last_point).or.(NE_i_time==1).or.CARR_RT_IO_t%last_point< 0
+ l_OBS        =l_JP.or.l_M.or.l_D.or.l_JP_REF
  !
  call timing('io_RT_components',OPR='start')
  !
  db_name="RT_"//trim(what)
  if (l_OBS)    db_name="RT_OBSERVABLES"
+ if (l_JP_REF) db_name="RT_OBSERVABLES_REF"
  if (l_REF)    db_name="RT_reference_components"
+ !
+ ID_frag=0
  !
  db_type=2
  if (.not.any((/l_OBS,l_carriers,l_THETA,l_G,l_REF/))) then
@@ -149,14 +159,25 @@ integer function io_RT_components(what,ID)
    if (io_RT_components/=0) goto 1
  endif
  !
+ if (read_is_on(ID)) then
+   if (l_OBS     ) db_type=4
+   if (l_G       ) db_type=5
+   if (l_carriers) db_type=6
+   if (l_THETA   ) db_type=7
+   if (l_REF     ) db_type=8
+   RT_DB_file_name(db_type)=io_file(ID)
+ endif
+ !
  ! 1st SECTION
  !=============
  if (any((/io_sec(ID,:)==1/))) then
    !
-   call io_RT_components_header(ID,what,loading_carr_before_neq,l_carriers,l_OBS,l_G,l_THETA,l_REF,io_RT_components)
-   if (io_RT_components/=0) goto 1
+   if (.not.l_JP_REF) then
+     call io_RT_components_header(ID,what,loading_carr_before_neq,l_carriers,l_OBS,l_G,l_THETA,l_REF,io_RT_components)
+     if (io_RT_components/=0) goto 1
+   endif
    !
-   if (l_OBS)  call io_RT_components_OBS(ID,l_JP,l_M,"DEF")
+   if (l_OBS)  call io_RT_components_OBS(ID,l_JP.or.l_JP_REF,l_M,"DEF")
    !
    if ( l_carriers .and. .not.loading_carr_before_neq) call RT_carriers_object(RT_carriers,DB_id=ID,WHAT="ref_io")
    !
@@ -183,19 +204,16 @@ integer function io_RT_components(what,ID)
  !
  if (any((/io_sec(ID,:)==2/))) then
    !
-   if(any((/l_OBS,l_G,l_carriers/)) .and. .not.loading_carr_before_neq ) then
+   if(any((/l_OBS,l_G,l_carriers/)) .and. .not.(loading_carr_before_neq.or.l_JP_REF) ) then
      io_RT_components=variables_RT_dynamic(ID)
      if (io_RT_components/=0) goto 1
    endif
    !
-#if defined _PAR_IO
-   if(l_G)        call io_RT_components_TIME_points(ID,T_size,first_IO,.false.,SAVE_G_history,l_G,GF_RT_IO_t)
-#else
-   if(l_G)        call io_RT_components_TIME_points(ID,T_size,.true.,.false.,SAVE_G_history,l_G,GF_RT_IO_t)
-#endif
-   if(l_carriers) call io_RT_components_TIME_points(ID,1,first_IO,.not.loading_carr_before_neq,.true.,l_G,CARR_RT_IO_t)
+   if (l_G)        call io_RT_components_TIME_points(ID,T_size,.false.,SAVE_G_history,l_G,GF_RT_IO_t)
    !
-   if(l_OBS)      call io_RT_components_TIME_points(ID,T_size,first_IO,.false.,.true.,l_G,OBS_RT_IO_t)
+   if (l_carriers) call io_RT_components_TIME_points(ID,1,.not.loading_carr_before_neq,.true.,l_G,CARR_RT_IO_t)
+   !
+   if (l_OBS)      call io_RT_components_TIME_points(ID,T_size,.false.,.true.,l_G,OBS_RT_IO_t)
    !
  endif
  !
@@ -204,20 +222,17 @@ integer function io_RT_components(what,ID)
  ! 3rd SECTION
  !=============
  !
- ! GPL_EXCLUDE_START
- !
-#if !defined _PAR_IO
- !
- ! === deal with K-fragments ===
- !
  if (l_THETA.or.l_G) then
+#if defined _PAR_IO
+   ID_frag=ID
+#else
+   ! === deal with K-fragments ===
    ik = max(1,maxval(io_sec(ID,:))-2)
-   call io_fragment(ID,i_fragment=ik)
+   call io_fragment(ID,ID_frag,i_fragment=ik)
+#endif
  endif
  !
-#endif
- !
-#if defined _ELPH
+#if defined _ELPH_ITERATIVE
  !
  ! ELPH Kernel THETA Matrix 
  !==========================
@@ -225,30 +240,37 @@ integer function io_RT_components(what,ID)
    !
    ! This should be replaced by call THETA_IO
    !
-   call def_variable_bulk(ID,"RT_THETA_K"//trim(intc(ik)),4,(/2,2*nqbz*ph_modes,RT_nbands,RT_nbands/),SP)
-   call  io_variable_bulk(ID,4,C3=THETA_matrix(:,:,:,ik))
+   call def_variable_bulk(ID_frag,"RT_THETA_K"//trim(intc(ik)),4,(/2,2*nqbz*ph_modes,RT_nbands,RT_nbands/),SP)
+   call  io_variable_bulk(ID_frag,4,C3=THETA_matrix(:,:,:,ik))
  endif
  !
 #endif
  !
  ! lesser Green Function
  !=======================
- if ( l_G ) call io_RT_components_G_lesser(ID,T_size)
+ if ( l_G ) call io_RT_components_G_lesser(ID_frag,T_size)
  !
  ! Carrier components
  !====================
  if ( l_carriers) then
-   if (first_IO.or.read_is_on(ID)) &
-   &  call RT_carriers_object(RT_carriers,DB_id=ID,WHAT="def_io_variables")
+   !
+   if (CARR_RT_IO_t%first_IO(3).or.read_is_on(ID)) then
+     call RT_carriers_object(RT_carriers,DB_id=ID,WHAT="def_io_variables")
+   endif
    call RT_carriers_object(RT_carriers,DB_id=ID,WHAT="do_io_variables")
    if (read_is_on(ID)) call RT_carriers_object(RT_carriers,WHAT="dump")
+   !
+   if (write_is_on(ID)) CARR_RT_IO_t%first_IO(3)=.FALSE.
+   !
  endif
- !
- ! GPL_EXCLUDE_END
  !
  ! Current and Polarization
  !==========================
- if (l_OBS) call io_RT_components_OBS(ID,l_JP,l_M,"FILL")
+ if (l_OBS) call io_RT_components_OBS(ID,l_JP.or.l_JP_REF,l_M,"FILL")
+ !
+#if !defined _PAR_IO
+ if (l_THETA.or.l_G) call io_fragment_disconnect(ID,ID_frag)
+#endif
  !
 1 call io_disconnect(ID=ID)
  !

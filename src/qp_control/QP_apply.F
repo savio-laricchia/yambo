@@ -1,8 +1,8 @@
 !
-!        Copyright (C) 2000-2020 the YAMBO team
+!        Copyright (C) 2000-2021 the YAMBO team
 !              http://www.yambo-code.org
 !
-! Authors (see AUTHORS file for details): AM
+! Authors (see AUTHORS file for details): AM, DS
 ! 
 ! This file is distributed under the terms of the GNU 
 ! General Public License. You can redistribute it and/or 
@@ -67,7 +67,7 @@ subroutine QP_apply(bands,en,k,object,msg_fmt,qp_impose,QP_ctl_impose,main_secti
  !
  ! Work Space
  !
- integer          ::i_spin,nbf_m_SAVE(2),i_a
+ integer          ::i_spin,nbf_SAVE(2),nbm_SAVE(2),nb_SAVE(2),i_a
  character(2)     ::sec_mode
  !
  ! Resets
@@ -169,15 +169,8 @@ subroutine QP_apply(bands,en,k,object,msg_fmt,qp_impose,QP_ctl_impose,main_secti
    !
  endif
  !
- ! Extend the QP corrections to the RIM energies
- !========
- if (allocated(en%E_DbGd)) then
-   !
-   call section('p'," Extending the correction to the DbGd")
-   !
-   call QP_apply_to_the_DbGd(bands,en,k)
-   !
- endif
+ ! The extension to the Fine Grid has been removed from here and 
+ ! included in QP_transfer, inside QP_apply_interpolate_QP
  !
  call section('p'," QP corrections report")
  !==========================================
@@ -185,29 +178,32 @@ subroutine QP_apply(bands,en,k,object,msg_fmt,qp_impose,QP_ctl_impose,main_secti
  ! Fermi Level Updates
  !=====================
  !
- if (input_Tel_is_negative) nbf_m_SAVE=(/en%nbf,en%nbm/)
+ if (input_Tel_is_negative) then
+   nbf_SAVE=en%nbf
+   nbm_SAVE=en%nbm
+ endif
  !
  if (.not.allocated(en%fo) .and. .not. l_sc_run) then
-   if (QP_ctl_ID==1) call OCCUPATIONS_Fermi(en,k,OBJ="X+QP")
-   if (QP_ctl_ID==2) call OCCUPATIONS_Fermi(en,k,OBJ="K+QP")
+   if (QP_ctl_ID==1) call OCCUPATIONS_Fermi(en,k,"X+QP")
+   if (QP_ctl_ID==2) call OCCUPATIONS_Fermi(en,k,"K+QP")
    if (QP_ctl_ID==3) then
-     call OCCUPATIONS_Fermi(en,k,OBJ="G+QP")
-     if (nkibz/=nXkibz) call warning("G and X k-grids have different number of k-points. G Fermi level potentially not alligned")
+     call OCCUPATIONS_Fermi(en,k,"G+QP")
+     if (nkibz/=nXkibz) call warning("G and X k-grids have different number of k-points. G Fermi level potentially not aligned")
    endif
  endif
  !
  if (input_Tel_is_negative) then
-   en%nbf=nbf_m_SAVE(1)
-   en%nbm=nbf_m_SAVE(2)
+   en%nbf=nbf_SAVE
+   en%nbm=nbm_SAVE
  endif
  !
  ! Energies report
  !-----------------
  !
- if (en%nbf==en%nbm) then
+ if (all((/en%nbf(:n_sp_pol)==en%nbm(:n_sp_pol)/))) then
    !
    call QP_apply_gap_report(en,"coarse-grid")
-   if (allocated(en%E_DbGd)) call QP_apply_gap_report(en,"DbGd")
+   if (allocated(en%FG%E)) call QP_apply_gap_report(en,"FineGd")
    call msg('r','')
    !
  endif
@@ -232,11 +228,11 @@ subroutine QP_apply(bands,en,k,object,msg_fmt,qp_impose,QP_ctl_impose,main_secti
     character(100)::space,msg_ch
     space(1:100)=" "
     do i_spin=1,n_sp_pol
-      Ego(i_spin)=minval(E%Eo(E%nbf+1,:,i_spin))-maxval(E%Eo(E%nbf,:,i_spin))
-      if (title=="DbGd") then
-        Eg(i_spin)=minval(E%E_DbGd(E%nbf+1,:,i_spin))-maxval(E%E_DbGd(E%nbf,:,i_spin))
+      Ego(i_spin)=minval(E%Eo(E%nbf(i_spin)+1,:,i_spin))-maxval(E%Eo(E%nbf(i_spin),:,i_spin))
+      if (title=="FineGd") then
+        Eg(i_spin)=minval(E%FG%E(E%nbf(i_spin)+1,:,i_spin))-maxval(E%FG%E(E%nbf(i_spin),:,i_spin))
       else
-        Eg(i_spin)=minval(E%E(E%nbf+1,:,i_spin))-maxval(E%E(E%nbf,:,i_spin))
+        Eg(i_spin)=minval(E%E(E%nbf(i_spin)+1,:,i_spin))-maxval(E%E(E%nbf(i_spin),:,i_spin))
       endif
       !
       msg_ch='['//title//'] Minimum Bare Gap        [ev]'

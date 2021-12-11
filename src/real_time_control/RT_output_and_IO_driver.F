@@ -1,5 +1,5 @@
 !
-!        Copyright (C) 2000-2020 the YAMBO team
+!        Copyright (C) 2000-2021 the YAMBO team
 !              http://www.yambo-code.org
 !
 ! Authors (see AUTHORS file for details): DS
@@ -28,12 +28,13 @@ subroutine RT_output_and_IO_driver(what,E,k,OBSERVABLES)
  use units,          ONLY:AUT2FS
  use electrons,      ONLY:levels
  use R_lattice,      ONLY:bz_samp
- use IO_m,           ONLY:IO_and_Messaging_switch,io_control,io_disconnect,WR_CL
- use drivers,        ONLY:l_elph_scatt,l_elel_scatt,l_elphoton_scatt
+ use IO_m,           ONLY:WR_CL
+ use IO_int,         ONLY:IO_and_Messaging_switch,io_control,io_disconnect
+ use RT_lifetimes,   ONLY:RT_EP_emit_life,RT_EE_life,RT_EH_life,RT_EP_abs_life,&
+&                         RT_EP_emit_REF_life,RT_EE_REF_life,RT_EH_REF_life,RT_EP_abs_REF_life
  use real_time,      ONLY:eval_energy,eval_entropy,l_RT_update_Energies,l_NE_with_fields,NE_time, &
 &                         l_RT_induced_field,l_RT_impose_N_dN,l_RT_impose_E,RT_is_dynamically_dephased,NE_i_time
  use D_lattice,      ONLY:Bose_Temp
- use RT_control,     ONLY:RT_do_it
  !
  implicit none
  !
@@ -46,6 +47,7 @@ subroutine RT_output_and_IO_driver(what,E,k,OBSERVABLES)
  !
  integer  :: i_ID
  real(SP) :: NCarr(3),TFit(2),EfFit(2),Ener(5),Entr(3),TEntr(3),EnEntr(3),BGR(4)
+ logical, external   :: RT_do_it
  !
  select case(trim(what))
    !
@@ -55,18 +57,14 @@ subroutine RT_output_and_IO_driver(what,E,k,OBSERVABLES)
    !
    call RT_output(what=trim(what)//" curr pol")
    !
-   ! GPL_EXCLUDE_START
-   !
-   call RT_output(what=trim(what)//" carr magn")
-   if(eval_energy)  call RT_output(what=trim(what)//" energy")
-   if(eval_entropy) call RT_output(what=trim(what)//" therm")
-   if(l_RT_update_Energies)  call RT_output(what=trim(what)//" BGR")
-   if (l_elph_scatt)         call RT_output(trim(what)//' mean_EPlife')
-   if (l_elel_scatt)         call RT_output(trim(what)//' mean_EElife')
-   if (l_elphoton_scatt)     call RT_output(trim(what)//' mean_RADlife')
-   if ((l_elel_scatt.or.l_elph_scatt).and.(l_RT_impose_N_dN.or.l_RT_impose_E)) call RT_output(trim(what)//' N_dN_E')
-   !
-   ! GPL_EXCLUDE_END
+   call RT_output(what=trim(what)//" carr spin orbt")
+   if (eval_energy)  call RT_output(what=trim(what)//" energy")
+   if (eval_entropy) call RT_output(what=trim(what)//" therm")
+   if (l_RT_update_Energies) call RT_output(what=trim(what)//" BGR")
+   if (RT_EP_emit_life%active) call RT_output(trim(what)//' mean_EPlife')
+   if (RT_EE_life%active     ) call RT_output(trim(what)//' mean_EElife')
+   if (RT_EH_life%active     ) call RT_output(trim(what)//' mean_RADlife')
+   if ((RT_EP_emit_life%active.or.RT_EE_life%active).and.(l_RT_impose_N_dN.or.l_RT_impose_E)) call RT_output(trim(what)//' N_dN_E')
    !
    ! Field(s)
    !==========
@@ -85,13 +83,7 @@ subroutine RT_output_and_IO_driver(what,E,k,OBSERVABLES)
    !
  case('write')
    !
-   if (RT_is_dynamically_dephased) then
-     !
-     call RT_Lifetimes_merge_driver("INTER_k")
-     !
-   endif
-   !
-   ! GPL_EXCLUDE_START
+   if (RT_is_dynamically_dephased) call RT_Lifetimes_merge_driver("INTER_k")
    !
    NCarr =OBSERVABLES( 1: 3)
    TFit  =OBSERVABLES( 4: 5)
@@ -102,10 +94,8 @@ subroutine RT_output_and_IO_driver(what,E,k,OBSERVABLES)
    EnEntr=OBSERVABLES(19:21)
    BGR   =OBSERVABLES(22:25)
    !
-   ! GPL_EXCLUDE_END
-   !
    call IO_and_Messaging_switch("-fragments_IO_log")
-   call RT_databases_IO(E)
+   call RT_databases_IO(E,.FALSE.)
    call IO_and_Messaging_switch("+fragments_IO_log")
    !
    ! OUTPUT(s)
@@ -115,12 +105,10 @@ subroutine RT_output_and_IO_driver(what,E,k,OBSERVABLES)
    !
    call RT_output('curr pol',TIME=NE_time*AUT2FS)
    !
-   ! GPL_EXCLUDE_START
-   !
    ! Energetics and BGR
    !====================
    !
-   call RT_output('magn',TIME=NE_time*AUT2FS)
+   call RT_output('spin orbt',TIME=NE_time*AUT2FS)
    call RT_output('carr',VALUES=(/NCarr(:),TFit(:),EfFit(:)/),TIME=NE_time*AUT2FS)
    if(eval_energy)          call RT_output('energy',VALUES=Ener,                          TIME=NE_time*AUT2FS)
    if(eval_entropy)         call RT_output('therm ',VALUES=(/EnEntr(:),Entr(:),TEntr(:)/),TIME=NE_time*AUT2FS)
@@ -130,16 +118,17 @@ subroutine RT_output_and_IO_driver(what,E,k,OBSERVABLES)
    !========================
    if (RT_is_dynamically_dephased) then
      !
-     call RT_mean_carrier_lifetimes(E,k)
+     call RT_mean_lifetimes_and_temperatures( RT_EP_emit_life, RT_EP_emit_REF_life )
+     call RT_mean_lifetimes_and_temperatures( RT_EP_abs_life , RT_EP_abs_REF_life )
+     if (RT_EP_emit_life%active) call RT_output('mean_EPlife', TIME=NE_time*AUT2FS)
+     call RT_mean_lifetimes_and_temperatures( RT_EE_life, RT_EE_REF_life )
+     if (RT_EE_life%active) call RT_output('mean_EElife', TIME=NE_time*AUT2FS)
+     call RT_mean_lifetimes_and_temperatures( RT_EH_life, RT_EH_REF_life )
+     if (RT_EH_life%active) call RT_output('mean_RADlife', TIME=NE_time*AUT2FS)
      !
-     if (l_elph_scatt)                      call RT_output('mean_EPlife', TIME=NE_time*AUT2FS)
-     if (l_elel_scatt)                      call RT_output('mean_EElife', TIME=NE_time*AUT2FS)
-     if (l_elphoton_scatt)                  call RT_output('mean_RADlife',TIME=NE_time*AUT2FS)
      if (l_RT_impose_N_dN.or.l_RT_impose_E) call RT_output('N_dN_E',TIME=NE_time*AUT2FS)
      !
    endif
-   !
-   ! GPL_EXCLUDE_END
    !
    ! Field(s)
    !==========

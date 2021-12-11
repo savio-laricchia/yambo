@@ -1,5 +1,5 @@
 !
-!        Copyright (C) 2000-2020 the YAMBO team
+!        Copyright (C) 2000-2021 the YAMBO team
 !              http://www.yambo-code.org
 !
 ! Authors (see AUTHORS file for details): AM DS
@@ -21,18 +21,19 @@
 ! Software Foundation, Inc., 59 Temple Place - Suite 330,Boston, 
 ! MA 02111-1307, USA or visit http://www.gnu.org/copyleft/gpl.txt.
 !
-subroutine RT_apply(bands,E,K,what,VERBOSE,IO_COM,Time,keep_RT_carriers,TIMES_ONLY)
+subroutine RT_apply(bands,E,K,what,VERBOSE,IO_COM,Time,keep_RT_carriers,TIMES_ONLY,skip_interpolation)
  !
  use drivers,        ONLY:l_elel_corr,l_rt_carriers_in_use
  use pars,           ONLY:schlen,SP,lchlen
  use stderr,         ONLY:STRING_split,real2ch,intc,STRING_same
  use parser_m,       ONLY:parser
- use electrons,      ONLY:levels,BZ_DbGd_tot_nk_levels
+ use electrons,      ONLY:levels
  use R_lattice,      ONLY:bz_samp,nkibz
- use IO_m,           ONLY:OP_RD_CL,NONE,DUMP,io_control,DB_path
- use units,          ONLY:FS2AUT,AUT2FS,PS2AUT
+ use IO_int,         ONLY:io_control
+ use IO_m,           ONLY:OP_RD_CL,NONE,DUMP,DB_path
+ use units,          ONLY:FS2AUT,AUT2FS,PS2AUT,HA2EV
  use real_time,      ONLY:RT_carriers,NE_i_time,RT_step,RT_obj_free
- use RT_control,     ONLY:NEQ_Residuals,NEQ_Kernel,CARR_RT_IO_t,RT_ctl_db,RT_ctl_interp_neigh
+ use RT_control,     ONLY:CARR_RT_IO_t,RT_ctl_db,RT_ctl_interp_neigh
  use com,            ONLY:msg,jobstr,alt_jobstr,n_alt_jobstr,depth,alt_jobdir,jobdir
  !
  implicit none
@@ -40,23 +41,25 @@ subroutine RT_apply(bands,E,K,what,VERBOSE,IO_COM,Time,keep_RT_carriers,TIMES_ON
  integer,intent(in)    :: bands(2)
  type(levels), intent(inout) :: E
  type(bz_samp), intent(in)   :: K
- character(*),optional,intent(in) :: what ! X,K,G,R
+ character(*),optional,intent(in) :: what ! X,K,G
  integer,     optional,intent(in) :: IO_COM
  logical ,    optional,intent(in) :: VERBOSE
  real(SP),    optional,intent(in) :: Time
  logical ,    optional,intent(in) :: keep_RT_carriers
  logical ,    optional,intent(in) :: TIMES_ONLY
+ logical ,    optional,intent(in) :: skip_interpolation
  !
  ! Work space
  !
- integer               :: I_id,i1,i_t,io_err,ID,COM_,i2,nkibz_save,i_j,BZ_DbGd_tot_nk_levels_save
+ integer               :: I_id,i1,i_t,io_err,ID,COM_,i2,nkibz_save,i_j,NN
  real(SP)              :: local_Time,TIME_diff,REF_diff
  integer,parameter     :: n_pieces=10
  integer, external     :: io_RT_components
  character(schlen)     :: db_piece(n_pieces),T_unit,ch
  character(lchlen)     :: db_name
  character(3)          :: what_
- logical               :: l_E,l_f,l_W,l_elel_corr_save,is_def,l_verbose,l_keep_carriers,l_BOLTZ,load_times_only
+ logical               :: l_E,l_f,l_W,l_elel_corr_save,is_def,l_verbose,l_keep_carriers,l_BOLTZ,&
+&                         load_times_only,do_not_interp
  !
  logical, external     :: file_exists
  !
@@ -65,6 +68,9 @@ subroutine RT_apply(bands,E,K,what,VERBOSE,IO_COM,Time,keep_RT_carriers,TIMES_ON
  ! 
  if (     present(IO_COM)) COM_=IO_COM
  if (.not.present(IO_COM)) COM_=NONE
+ !
+ do_not_interp=.false.
+ if (present(skip_interpolation)) do_not_interp=skip_interpolation
  !
  l_verbose=.false.
  if (present(VERBOSE)) l_verbose=VERBOSE
@@ -88,7 +94,6 @@ subroutine RT_apply(bands,E,K,what,VERBOSE,IO_COM,Time,keep_RT_carriers,TIMES_ON
    if (what=="X")  I_id=1
    if (what=="K")  I_id=2
    if (what=="G")  I_id=3
-   if (what=="R")  I_id=4
    !
    call parser(what//'fnRTdb',is_def)
    !
@@ -141,8 +146,7 @@ subroutine RT_apply(bands,E,K,what,VERBOSE,IO_COM,Time,keep_RT_carriers,TIMES_ON
      local_Time=local_Time*PS2AUT
    endif
    !
-   if (l_f .and. I_id==2) NEQ_Kernel   =.true.
-   if (l_f .and. I_id==4) NEQ_Residuals=.true.
+   NN=RT_ctl_interp_neigh(I_id)
    !
  else
    !
@@ -169,6 +173,12 @@ subroutine RT_apply(bands,E,K,what,VERBOSE,IO_COM,Time,keep_RT_carriers,TIMES_ON
      if (.not.file_exists(trim(db_name))) call msg('l','not found')
    endif
    !
+   l_E=.FALSE.
+   l_f=.TRUE.
+   l_W=.FALSE.
+   l_BOLTZ=.FALSE.
+   NN=1
+   !
  endif
  !
  ! I/O Time
@@ -178,7 +188,6 @@ subroutine RT_apply(bands,E,K,what,VERBOSE,IO_COM,Time,keep_RT_carriers,TIMES_ON
  !
  l_elel_corr_save      =l_elel_corr
  nkibz_save            =nkibz
- BZ_DbGd_tot_nk_levels_save=BZ_DbGd_tot_nk_levels
  ! 
  ! CARRIERS I/O (I)
  !====================
@@ -186,7 +195,6 @@ subroutine RT_apply(bands,E,K,what,VERBOSE,IO_COM,Time,keep_RT_carriers,TIMES_ON
  call io_control(ACTION=OP_RD_CL,COM=COM_,MODE=DUMP,SEC=(/1/),ID=ID) 
  io_err=io_RT_components(trim(db_name),ID)
  !
- BZ_DbGd_tot_nk_levels=BZ_DbGd_tot_nk_levels_save
  nkibz            =nkibz_save
  l_elel_corr      =l_elel_corr_save
  !
@@ -208,6 +216,9 @@ subroutine RT_apply(bands,E,K,what,VERBOSE,IO_COM,Time,keep_RT_carriers,TIMES_ON
    return
  endif
  !
+ ! TIMES...
+ !----------
+ !
  call io_control(ACTION=OP_RD_CL,COM=NONE,SEC=(/2/),MODE=DUMP,ID=ID)
  io_err=io_RT_components(trim(db_name),ID)
  !
@@ -222,6 +233,8 @@ subroutine RT_apply(bands,E,K,what,VERBOSE,IO_COM,Time,keep_RT_carriers,TIMES_ON
    endif
  enddo
  !
+ ! Occupations...
+ !----------------
  call io_control(ACTION=OP_RD_CL,COM=NONE,SEC=(/3/),MODE=DUMP,ID=ID)
  io_err=io_RT_components(trim(db_name),ID)
  !
@@ -232,23 +245,19 @@ subroutine RT_apply(bands,E,K,what,VERBOSE,IO_COM,Time,keep_RT_carriers,TIMES_ON
    return
  endif
  !
- !
  if (present(what)) then
    ch='External RT corrections ('//what//')'
    if (depth>0 ) call section('=',trim(ch))
    if (depth==0) call section('+',trim(ch))
  endif
  !
- l_verbose=.true.
  if (l_verbose) call msg('s','[RT] Loaded Carrier components @'//trim(real2ch(local_Time*AUT2FS))//' fs')
  !
- ! Interpolatle the RT_carriers object inside the En levels object (energy, occupations and lifetimes)
- ! Only yambo enters here. YPP fills the RT_carriers object and directly uses it instead
+ ! Interpolation
+ !==============
+ if (.not.do_not_interp) call RT_interpolation_driver(bands,E,K,what_,local_Time,l_f,l_E,l_W,l_BOLTZ,NN,l_verbose)
  !
- ! Yambo
- !=======
- if (present(what))        call RT_interpolation(bands,E,K,what_,"NN",local_Time,&
-&                                                l_f,l_E,l_W,l_BOLTZ,RT_ctl_interp_neigh(I_id))
+ call REPORT_Energies(E%f/HA2EV,K,K,E%nb,(/1,K%nibz/),'OCCrt',.FALSE.,.TRUE.)
  !
  if (.not.l_keep_carriers) call RT_obj_free(RT_carriers)
  !
