@@ -63,6 +63,8 @@ subroutine SC_driver(X,Xw,Xk,E,k,q,Dip)
  use collision_ext,  ONLY:COH_COLL_element,HXC_COLL_element,COLLISIONS_have_HARTREE
  use electrons,      ONLY:Spin_magn
  use electric,       ONLY:ELECTRIC_alloc,ELECTRIC_free,W_electric
+ use parser_m,       ONLY:parser
+ use pseudo,         ONLY:l_use_p2_becp 
  !
 #include<memory.h>
  !
@@ -201,7 +203,16 @@ subroutine SC_driver(X,Xw,Xk,E,k,q,Dip)
  !
  !  Hzero (kinetic + potential)
  !=============================
- call Bare_Hamiltonian(E,Xk,k)
+ !
+ ! [FP]
+ call parser('BareHfromBecp', l_use_p2_becp)
+ if (l_use_p2_becp) then 
+   call Direct_Bare_Hamiltonian(E,Xk,k)
+ else
+   call Bare_Hamiltonian(E,Xk,k)
+ endif
+ l_use_p2_becp=.false.
+ ! [FP]
  !
  call OCCUPATIONS_Fermi(E,k,"E",mode="OCCUPATIONS") 
  !

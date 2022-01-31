@@ -47,6 +47,9 @@ module hamiltonian
  !
  real(SP),    allocatable :: V_xc_sc(:,:)
  real(SP),    allocatable :: V_hartree_sc(:,:)
+ ! [FP] Non-local part of pseudopotential
+ real(SP),    allocatable :: Hext_nl(:,:)
+ ! [FP]
  !
  logical           :: l_sc_V_is_local=.TRUE.
  logical           :: l_sc_XC_is_local=.TRUE.
@@ -147,6 +150,10 @@ module hamiltonian
      YAMBO_ALLOC(V_xc,(fft_size,n_spin))
      !
      YAMBO_ALLOC(V_hartree_sc,(fft_size,n_spin))
+     !
+     ! [FP]
+     YAMBO_ALLOC(Hext_nl,(H_ref_bands(1):H_ref_bands(2),H_ref_bands(1):H_ref_bands(2)))
+     ! [FP]
      !
    end subroutine
    !

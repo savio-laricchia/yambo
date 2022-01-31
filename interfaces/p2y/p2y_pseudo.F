@@ -38,6 +38,7 @@ subroutine p2y_pseudo(k)
  use IO_int,                ONLY:io_control
  use IO_m,                  ONLY:OP_WR_CL,OP_APP_CL,REP
  use read_pseudo_mod,       ONLY:readpp
+ use mod_com2y,             ONLY : write_Vloc_Vnl
  !
  implicit none
  !
@@ -147,12 +148,13 @@ subroutine p2y_pseudo(k)
  !
  call pre_init()
  call allocate_nlpot()
- !
- if ( any(atoms%pseudo(:)%is_uspp) ) then
+ ! [FP]
+ if ( any(atoms%pseudo(:)%is_uspp) .or. write_Vloc_Vnl ) then
    !
 #ifndef _USPP
-   call error("[PPs] Ultrasoft PP not supported")
+   if (.not. write_Vloc_Vnl) call error("[PPs] Ultrasoft PP not supported")
 #endif
+   ! [FP]
    call init_us_1()
    !
    call io_control(ACTION=OP_WR_CL,COM=REP,SEC=(/1/),ID=ID)

@@ -41,13 +41,15 @@ subroutine WF_load(WF,iG_in,iGo_max_in,bands_to_load,kpts_to_load,sp_pol_to_load
  use IO_m,          ONLY:OP_RD,NONE,VERIFY,RD,RD_CL,DUMP
  use wrapper,       ONLY:Vstar_dot_V
 #if defined _SC
- use SC,            ONLY:compatible_SC_DB,load_SC_components,SC_bands,found_SC_DB,SC_bands
+ use SC,            ONLY:compatible_SC_DB,load_SC_components,SC_bands,found_SC_DB,&
+&                        SC_bands
  use global_XC,     ONLY:WF_kind,WF_xc_functional,WF_perturbation,global_XC_string
 #endif
- use pseudo,        ONLY:pp_is_uspp,becp
+ use pseudo,        ONLY:pp_is_uspp,becp,l_use_p2_becp
  use qe_pseudo_m,   ONLY:vkb,tpiba
  use timing_m,      ONLY:timing
  use cuda_m,        ONLY:have_cuda
+ use wvfct,         ONLY:npwx
  !
 #include<dev_defs.h>
 #include<memory.h>
@@ -71,7 +73,7 @@ subroutine WF_load(WF,iG_in,iGo_max_in,bands_to_load,kpts_to_load,sp_pol_to_load
 &                   npwk
  real(SP)         ::mndp,mxdp,xk(3)
  complex(SP)      ::c
- logical          ::loaded_bounds_ok,free_and_alloc,buffer_is_ok,clean_up_states,force_WFo_,QUIET_wf,SIZE_msg
+ logical          ::loaded_bounds_ok,free_and_alloc,buffer_is_ok,clean_up_states,force_WFo_,QUIET_wf,SIZE_msg,do_becp
  complex(SP), allocatable :: wf_disk(:,:,:)
  complex(DP), allocatable :: wf_DP(:)
  !
@@ -83,6 +85,12 @@ subroutine WF_load(WF,iG_in,iGo_max_in,bands_to_load,kpts_to_load,sp_pol_to_load
  ! I/O
  !
  integer ::io_err,ID
+ !
+ ! [FP]
+ ! Setting logicals for becp computation
+ do_becp=pp_is_uspp
+ if (l_use_p2_becp) do_becp=.true.
+ ! [FP]
  !
  ! Close iG/iGo_max to the nearest shell
  !
@@ -251,6 +259,11 @@ subroutine WF_load(WF,iG_in,iGo_max_in,bands_to_load,kpts_to_load,sp_pol_to_load
  ! Init USPP if needed
  !
  call PP_uspp_init()
+ ! [FP] Testing of a problem  where npwk > npwx, i.e.,
+ !      value npwx in ns.uspp_pwscf not corresponding to wf_ng in ns.db1
+ write (*,*) shape(vkb)
+ npwx=wf_ng
+ ! [FP] 
  !
  ! Memory allocation
  !
@@ -306,7 +319,9 @@ subroutine WF_load(WF,iG_in,iGo_max_in,bands_to_load,kpts_to_load,sp_pol_to_load
      !
      ! USPP init
      !
-     if (pp_is_uspp) then
+     ! [FP]
+     if (do_becp) then
+       ! [FP]
        !
        call c2a(b,k_pt(ikibz,:),xk,mode="ki2c")
        xk=xk/real(tpiba,SP)
@@ -314,7 +329,9 @@ subroutine WF_load(WF,iG_in,iGo_max_in,bands_to_load,kpts_to_load,sp_pol_to_load
        npwk=wf_nc_k(ikibz)
        call init_us_2(npwk,wf_igk(1:npwk,ikibz),xk,vkb)
        !
+       write (*,*) "OUT of init_us_2"
      endif
+     
      !
      ifrag=ikibz+(i_sp_pol-1)*nkibz
      !
@@ -355,8 +372,12 @@ subroutine WF_load(WF,iG_in,iGo_max_in,bands_to_load,kpts_to_load,sp_pol_to_load
            io_err=io_WF(ID,wf_disk)
          endif
          !
-         if (pp_is_uspp) then
+         ! [FP]
+         if (do_becp) then
+            ! [FP] 
+            write (*,*) "IN PP_compute_becp"
             call PP_compute_becp( becp(ikibz,i_sp_pol), wf_nc_k(ikibz), wf_nb_to_load, wf_disk, wf_b_indx)
+            write (*,*) "OUT PP_compute_becp"
          endif
          !
        else
@@ -569,6 +590,7 @@ subroutine WF_load(WF,iG_in,iGo_max_in,bands_to_load,kpts_to_load,sp_pol_to_load
  !
  if (QUIET_wf) call IO_and_Messaging_switch("+report +log ")
  !
+ write (*,*) "OUT of WF_load"
  contains
    !
    subroutine check_bounds(WF_,flag_)

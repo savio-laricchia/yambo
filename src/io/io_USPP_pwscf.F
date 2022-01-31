@@ -177,6 +177,13 @@ integer function io_USPP_pwscf(ID)
    !
  enddo specie_loop
  !
+ ! [FP] Variables not relevant in non-USPP case are set to zero
+ ! [FP] since they are not initialised by pw 
+#ifndef _USPP
+ nhtoj=0.d0
+#endif
+ ! [FP]
+ !
  ! uspp
  call io_bulk(ID,VAR="indv",VAR_SZ=shape(indv))
  call io_bulk(ID,I2=indv)

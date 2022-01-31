@@ -679,6 +679,9 @@ subroutine INIT_load(defs,en,q,k,X,Xw,Dip)
  call it('f',defs,'Mean_Potential','[SC] Real-space Mean Potential',verb_level=V_sc)
  call it('f',defs,'SCnlMix','[SC] Use SC non-local mixing',verb_level=V_sc)
  call it('f',defs,'FrozeDensity','[NL] Do not update density (for testing purposes)',verb_level=V_sc)
+ ! [FP] TEST: to be removed
+ call it('f',defs,'BareHfromBecp','Compute bare H_0 directly in k-space with p**2 and becp%k (for testing purposes)')
+ ! [FP]
  !
  ! SC [NEQ]
  !

@@ -32,7 +32,8 @@ subroutine PP_uspp_init()
  use vec_operate,   ONLY:c2a
  use D_lattice,     ONLY:nsym,dl_sop,atom_mapper
  use R_lattice,     ONLY:b,g_vec,ng_vec
- use pseudo,        ONLY:pp_is_uspp,qe_pseudo_alloc,PP_uspp_free,qe_atoms_map
+ use pseudo,        ONLY:pp_is_uspp,qe_pseudo_alloc,PP_uspp_free,qe_atoms_map,&
+&                        l_use_p2_becp,PP_uspp_alloc
  use IO_int,        ONLY:io_control
  use IO_m,          ONLY:OP_RD_CL,REP
  !
@@ -41,6 +42,7 @@ subroutine PP_uspp_init()
  use gvect,         ONLY:qe_eigts1=>eigts1, qe_eigts2=>eigts2, qe_eigts3=>eigts3,&
 &                        qe_g=>g, qe_gg=>gg, qe_ngm=>ngm, qe_mill=>mill
  use timing_m,      ONLY:timing
+ use parser_m,       ONLY:parser
  !
 #include<memory.h>
  !
@@ -51,6 +53,7 @@ subroutine PP_uspp_init()
  real(SP) :: v1(3)
  real(DP) :: qe_b(3,3)
  complex(DP), allocatable :: strf(:,:)
+ logical :: l_will_need_becp
  !
  integer, external :: io_USPP_pwscf
 
@@ -59,7 +62,11 @@ subroutine PP_uspp_init()
  !
  if (qe_pseudo_alloc) return
  call timing("PP_uspp_init","start")
-
+ ! [FP]
+ if (l_use_p2_becp) then
+   call PP_uspp_alloc()
+ endif
+ ! [FP] 
  !
  ! perform main data IO
  !
@@ -68,22 +75,32 @@ subroutine PP_uspp_init()
  !
  pp_is_uspp=(io_err==0)
  !
+ ! [FP] 
+ call parser('BareHfromBecp', l_will_need_becp)
 #ifndef _USPP
- if (pp_is_uspp) call error("[PPs] Ultrasoft PP not supported")
+ if (pp_is_uspp.and..not.l_will_need_becp) then
+   call error("[PPs] Ultrasoft PP not supported")
+ endif
 #endif
  !
- if (.not.pp_is_uspp.or.nkb<=0) then
+ if ((pp_is_uspp.and.l_will_need_becp.and..not.l_use_p2_becp).or.&
+    (.not.pp_is_uspp.or.nkb<=0)) then
+ !if (.not.pp_is_uspp.or.nkb<=0) then
+   ! [FP]
    pp_is_uspp=.false.
    call PP_uspp_free()
    call timing("PP_uspp_init","stop")
    return
  endif
  
+
+
  !
  ! checks
- !
+ ! [FP]
  if (.not.( l_setup.or.l_col_cut.or.l_rim.or.list_dbs.or. &
-            l_HF_and_locXC) ) then
+            l_HF_and_locXC.or.l_use_p2_becp) ) then
+    ! [FP]
     call error("[PPs] USPP not implemented for current runlevel")
  endif
 
@@ -103,9 +120,11 @@ subroutine PP_uspp_init()
  !
  qe_ngm=ng_vec
  !
+
  YAMBO_ALLOC(qe_g,(3,qe_ngm))
  YAMBO_ALLOC(qe_gg,(qe_ngm))
  YAMBO_ALLOC(qe_mill,(3,qe_ngm))
+
  !
  do ig = 1, ng_vec
     !
@@ -120,6 +139,7 @@ subroutine PP_uspp_init()
     !
  enddo
  !
+
  do i = 1, 3
    gv_min=minval(qe_mill(i,:))
    gv_max=maxval(qe_mill(i,:))
