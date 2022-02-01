@@ -261,8 +261,9 @@ subroutine WF_load(WF,iG_in,iGo_max_in,bands_to_load,kpts_to_load,sp_pol_to_load
  call PP_uspp_init()
  ! [FP] Testing of a problem  where npwk > npwx, i.e.,
  !      value npwx in ns.uspp_pwscf not corresponding to wf_ng in ns.db1
- write (*,*) shape(vkb)
- npwx=wf_ng
+ ! [DS] Here npwx=wf_ncx. This is ok.
+ write (*,*) allocated(vkb),shape(vkb),npwx,wf_ng,wf_ncx
+ !npwx=wf_ng
  ! [FP] 
  !
  ! Memory allocation

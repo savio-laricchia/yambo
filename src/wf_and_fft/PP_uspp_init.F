@@ -57,6 +57,8 @@ subroutine PP_uspp_init()
  !
  integer, external :: io_USPP_pwscf
 
+ call parser('BareHfromBecp', l_will_need_becp)
+ if (.not.l_will_need_becp) return
  !
  ! in case, assume qe_pseudo already alloc and init
  !
@@ -76,7 +78,6 @@ subroutine PP_uspp_init()
  pp_is_uspp=(io_err==0)
  !
  ! [FP] 
- call parser('BareHfromBecp', l_will_need_becp)
 #ifndef _USPP
  if (pp_is_uspp.and..not.l_will_need_becp) then
    call error("[PPs] Ultrasoft PP not supported")
