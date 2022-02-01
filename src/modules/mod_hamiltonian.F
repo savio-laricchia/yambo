@@ -48,7 +48,7 @@ module hamiltonian
  real(SP),    allocatable :: V_xc_sc(:,:)
  real(SP),    allocatable :: V_hartree_sc(:,:)
  ! [FP] Non-local part of pseudopotential
- real(SP),    allocatable :: Hext_nl(:,:)
+ complex(SP),    allocatable :: Hext_nl(:,:)
  ! [FP]
  !
  logical           :: l_sc_V_is_local=.TRUE.

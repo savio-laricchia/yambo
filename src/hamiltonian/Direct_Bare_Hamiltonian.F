@@ -76,17 +76,17 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  !
  call WF_load(WF,WF_G_max,WF_Go_indx,WFbands,(/1,nkibz/),title='-SC')
  !call get_Hext_nl() 
- if (allocated(becp)) then
-   write (*,*) "BECP ALLOCATED!",shape(becp)
- else
-   write (*,*) "BECP NOOOOT ALLOCATED!"
- endif
+ !if (allocated(becp)) then
+ !  write (*,*) "BECP ALLOCATED!",shape(becp)
+ !else
+ !  write (*,*) "BECP NOOOOT ALLOCATED!"
+ !endif
  !write (*,*) "DIPOLES:", shape(Dip)
  do i_sp_pol=1,n_sp_pol
    !
    do ik=1,QP_nk
      !
-     write (*,*) "becp", allocated(becp(ik,i_sp_pol)%k),shape(becp(ik,i_sp_pol)%k)
+     write (*,*) "H_pseudo (ik,i_sp_pol) ",ik,i_sp_pol
      !
      ! Calculate the nonlocal part of Hext ...
      ! =========================================
@@ -94,14 +94,17 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
      Hext_nl=cZERO
      do ib1=H_ref_bands(1),H_ref_bands(2)
        do ib2=H_ref_bands(1),H_ref_bands(2)
-         Hext_nl = dot_product( conjg(becp(ik,i_sp_pol)%k(:,ib1)), becp(ik,i_sp_pol)%k(:,ib2) )
-         write(*,*) Hext_nl(H_ref_bands(1),H_ref_bands(1))
-         !do ikb=1,nkb
-         !  !
-         !  Hext_nl = Hext_nl + conjg(becp(ik,i_sp_pol)%k(ikb,ib1)) * becp(ik,i_sp_pol)%k(ikb,ib2)
-         !  !
-         !enddo
+         !Hext_nl(ib1,ib2) = dot_product( conjg(becp(ik,i_sp_pol)%k(:,ib1)), becp(ik,i_sp_pol)%k(:,ib2) )
+         do ikb=1,nkb
+           !
+           Hext_nl(ib1,ib2) = Hext_nl(ib1,ib2) + conjg(becp(ik,i_sp_pol)%k(ikb,ib1)) * becp(ik,i_sp_pol)%k(ikb,ib2)
+           !
+         enddo
        enddo
+     enddo
+     !
+     do ib1=H_ref_bands(1),H_ref_bands(2)
+       write(*,*) Hext_nl(ib1,:)
      enddo
      !
      ! Fill Hzero
