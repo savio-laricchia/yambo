@@ -58,7 +58,6 @@ subroutine PP_uspp_init()
  integer, external :: io_USPP_pwscf
 
  call parser('BareHfromBecp', l_will_need_becp)
- if (.not.l_will_need_becp) return
  !
  ! in case, assume qe_pseudo already alloc and init
  !

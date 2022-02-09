@@ -37,7 +37,7 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  use H_interfaces,   ONLY:V_real_space_to_H
  use timing_m,       ONLY:timing
  use DIPOLES,        ONLY:DIPOLE_t
- use pseudo,         ONLY:becp
+ use pseudo,         ONLY:becp,pp_is_uspp
  use uspp,           ONLY:nkb
 #if defined _SC
  use drivers,        ONLY:l_sc_run
@@ -63,25 +63,18 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  !
  call timing('Direct_Bare_Hamiltonian',OPR='start')
  !
- ! WF Loading, density and magnetization
+ if (pp_is_uspp) call error("[PPs] Currently, USPP not implemented for ED")
+ !
+ ! WF Loading
  !=======================================
  WFbands=(/H_ref_bands(1),max(H_ref_bands(2),maxval(E%nbm))/)
- !call WF_load(WF,WF_G_max,WF_Go_indx,WFbands,(/1,nkibz/),title='-SC')
+ call WF_load(WF,WF_G_max,WF_Go_indx,WFbands,(/1,nkibz/),title='-SC')
  !
- ! The Hzero = -nabla**2. + V_ext is computed directly:
+ ! The Hzero = T + Hext = -P**2./2. + V_ext^loc + V_ext^nl is computed directly:
  !
- ! Hzero_n,m = Dip**2/2. + sum_i [becp%k(i,n)]* * becp%k(i,m)
+ ! Hzero_n,m = P**2/2. + vloc + sum_ij [becp%k(i,n)]* D_ij * becp%k(j,m)
  !
  !========================================
- !
- call WF_load(WF,WF_G_max,WF_Go_indx,WFbands,(/1,nkibz/),title='-SC')
- !call get_Hext_nl() 
- !if (allocated(becp)) then
- !  write (*,*) "BECP ALLOCATED!",shape(becp)
- !else
- !  write (*,*) "BECP NOOOOT ALLOCATED!"
- !endif
- !write (*,*) "DIPOLES:", shape(Dip)
  do i_sp_pol=1,n_sp_pol
    !
    do ik=1,QP_nk
@@ -123,58 +116,10 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  enddo
  !
  call PP_redux_wait(Hzero)
+ pp_is_uspp=.false.
  !
- !call WF_free(WF)
- !
- write(*,*) "End of Direct hamiltonina "
+ write(*,*) "End of Direct hamiltonian "
  !
  call timing('Direct_Bare_Hamiltonian',OPR='stop')
  !
 end subroutine Direct_Bare_Hamiltonian
-
-subroutine get_Hext_nl()
- !
- ! Calculate non-local projectors ("becp") for current pseudopotential.
- ! This will be used to construct nonlocal part of Hext.
- !
- ! Flow is taken from WF_load using ultrasoft-specific parts:
- !   PP_uspp_init -> init_us_2 -> PP_compute_becp
- !
- use pars,          ONLY:SP
- use vec_operate,   ONLY:c2a
- use R_lattice,     ONLY:nkibz,k_pt,b
- use qe_pseudo_m,   ONLY:vkb,tpiba
- use wave_func,     ONLY:WF,wf_nc_k,wf_igk,wf_nb_to_load,wf_b_indx
- use pseudo,        ONLY:becp
- use electrons,     ONLY:n_sp_pol
- use hamiltonian,   ONLY:Hext_nl
- !
- ! Work space
- ! 
- integer                  :: i_sp_pol,ikibz
- real(SP)                 :: xk(3)
- complex(SP), allocatable :: wf_disk(:,:,:)
- !
- call PP_uspp_init()
- !
- do i_sp_pol=1,n_sp_pol
-   !
-   if (any( (/i_sp_pol<WF%sp_pol(1), i_sp_pol>WF%sp_pol(2)/) )) cycle
-   !
-   do ikibz=1,nkibz
-     !
-     if (any( (/ikibz<WF%k(1), ikibz>WF%k(2)/) )) cycle
-     !
-     call c2a(b,k_pt(ikibz,:),xk,mode="ki2c")
-     xk=xk/real(tpiba,SP)
-     !
-     npwk=wf_nc_k(ikibz)
-     call init_us_2(npwk,wf_igk(1:npwk,ikibz),xk,vkb)
-     !
-     call PP_compute_becp( becp(ikibz,i_sp_pol), wf_nc_k(ikibz), wf_nb_to_load,wf_disk, wf_b_indx)
-     !
-   enddo
-   !
- enddo
-
-end subroutine get_Hext_nl

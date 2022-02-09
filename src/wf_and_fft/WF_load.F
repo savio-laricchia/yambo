@@ -259,12 +259,6 @@ subroutine WF_load(WF,iG_in,iGo_max_in,bands_to_load,kpts_to_load,sp_pol_to_load
  ! Init USPP if needed
  !
  call PP_uspp_init()
- ! [FP] Testing of a problem  where npwk > npwx, i.e.,
- !      value npwx in ns.uspp_pwscf not corresponding to wf_ng in ns.db1
- ! [DS] Here npwx=wf_ncx. This is ok.
- !write (*,*) "vkb_check",allocated(vkb),shape(vkb),npwx,wf_ng,wf_ncx
- !npwx=wf_ng
- ! [FP] 
  !
  ! Memory allocation
  !
@@ -330,7 +324,6 @@ subroutine WF_load(WF,iG_in,iGo_max_in,bands_to_load,kpts_to_load,sp_pol_to_load
        npwk=wf_nc_k(ikibz)
        call init_us_2(npwk,wf_igk(1:npwk,ikibz),xk,vkb)
        !
-       !write (*,*) "OUT of init_us_2"
      endif
      !
      ifrag=ikibz+(i_sp_pol-1)*nkibz
@@ -375,9 +368,7 @@ subroutine WF_load(WF,iG_in,iGo_max_in,bands_to_load,kpts_to_load,sp_pol_to_load
          ! [FP]
          if (do_becp) then
             ! [FP] 
-            !write (*,*) "IN PP_compute_becp"
             call PP_compute_becp( becp(ikibz,i_sp_pol), wf_nc_k(ikibz), wf_nb_to_load, wf_disk, wf_b_indx)
-            !write (*,*) "OUT PP_compute_becp"
          endif
          !
        else
@@ -590,7 +581,6 @@ subroutine WF_load(WF,iG_in,iGo_max_in,bands_to_load,kpts_to_load,sp_pol_to_load
  !
  if (QUIET_wf) call IO_and_Messaging_switch("+report +log ")
  !
- !write (*,*) "OUT of WF_load"
  contains
    !
    subroutine check_bounds(WF_,flag_)
