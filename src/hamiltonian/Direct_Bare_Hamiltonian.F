@@ -47,7 +47,7 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  !
  ! Work space
  !
- integer     :: ik,ikb,ib1,ib2,i_sp_pol,WFbands(2),na,nt
+ integer     :: ik,ikb,ib1,ib2,i_sp_pol,WFbands(2),na,nt,i1,i2
  !
  Hzero=cZERO
  Hext_nl=cZERO
@@ -70,6 +70,7 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  ! Hzero_n,m = P**2/2. + vloc + sum_i [becp%k(i,n)]* D_i * becp%k(j,m)
  !
  !=======================================================================
+ !
  do i_sp_pol=1,n_sp_pol
    !
    do ik=1,QP_nk
@@ -87,27 +88,33 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
        do ib2=H_ref_bands(1),H_ref_bands(2)
          !
          ! NB: Unlike for (i) the dipoles or (ii) the Pseudo_Hamiltonian cases,
-         !     here we have to *explicitly* use the (diagonal?) deeq factors to
+         !     here we have to *explicitly* use the nondiagonal deeq matrix to
          !     compute the pseudo Hamiltonian matrix elements since deeq is *not*
          !     already diagonalised and incorporated into the KB projectors.
          !
-         ! The procedure is adapted from add_vuspsi_k() in PW/src/add_vuspsi.f90
+         ! The external loops over ntyp, nat are adapted from add_vuspsi_k() 
+         ! in PW/src/add_vuspsi.f90
          ! =================================================================
          ikb = 0
-         do nt=1,ntyp
-           
+         do nt=1,ntyp 
+           !
            if ( nh(nt) == 0 ) cycle
-           
+           !
            do na=1,nat
              !
              if ( ityp(na) == nt ) then
                !     
-               Hext_nl(ib1,ib2) = Hext_nl(ib1,ib2) + &
-                                  conjg(becp(ik,i_sp_pol)%k(ikb_i(na)+1,ib1)) * &
-                                                        deeq(1,1,na,i_sp_pol) * &
-                                        becp(ik,i_sp_pol)%k(ikb_i(na)+1,ib2)
+               do i1=1,nh(nt) ! number of projectors for atom na which is of species nt
+                 do i2=1,nh(nt) ! deeq is nondiagonal if more than one projector per atom
+                   !
+                   Hext_nl(ib1,ib2) = Hext_nl(ib1,ib2) + &
+                                      conjg(becp(ik,i_sp_pol)%k(ikb_i(na)+i1,ib1)) * &
+                                                           deeq(i1,i2,na,i_sp_pol) * &
+                                            becp(ik,i_sp_pol)%k(ikb_i(na)+i2,ib2)
+                 enddo
+                 ikb = ikb +1  
+               enddo
                !
-               ikb = ikb + 1
              endif
              !
            enddo
