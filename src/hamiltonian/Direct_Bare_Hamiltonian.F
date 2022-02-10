@@ -2,7 +2,7 @@
 !        Copyright (C) 2000-2021 the YAMBO team
 !              http://www.yambo-code.org
 !
-! Authors (see AUTHORS file for details): DV DS
+! Authors (see AUTHORS file for details): FP, DS
 !
 ! This file is distributed under the terms of the GNU
 ! General Public License. You can redistribute it and/or
@@ -24,39 +24,30 @@
 subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  !
  use pars,           ONLY:cZERO
- use electrons,      ONLY:levels,n_sp_pol,spin,n_spin
- use QP_m,           ONLY:QP_nk,QP_Vxc,QP_n_states
- use hamiltonian,    ONLY:Hzero,E_reference,V_hartree_sc,rho_n,magn_n,V_xc_sc,&
-&                         H_ref_bands,WF_G_max,WF_Go_indx,Hext_nl
- use parallel_m,     ONLY:PAR_IND_WF_k,PAR_IND_WF_linear
+ use electrons,      ONLY:levels,n_sp_pol
+ use QP_m,           ONLY:QP_nk
+ use interfaces,     ONLY:WF_load
+ use hamiltonian,    ONLY:Hzero,H_ref_bands,WF_G_max,WF_Go_indx,Hext_nl!,E_reference
+ use parallel_m,     ONLY:PAR_IND_WF_k
  use parallel_int,   ONLY:PP_redux_wait
  use wave_func,      ONLY:WF
  use R_lattice,      ONLY:bz_samp,nkibz
- use xc_functionals, ONLY:V_xc
- use interfaces,     ONLY:el_density_and_current,el_magnetization,WF_load,WF_free
- use H_interfaces,   ONLY:V_real_space_to_H
  use timing_m,       ONLY:timing
- use DIPOLES,        ONLY:DIPOLE_t
  use pseudo,         ONLY:becp,pp_is_uspp
- use uspp,           ONLY:nkb
-#if defined _SC
- use drivers,        ONLY:l_sc_run
-#endif
+ use uspp,           ONLY:nkb,ikb_i=>indv_ijkb0,deeq!,deeq_nc
+ use uspp_param,     ONLY:nh
+ use ions_base,      ONLY:nat,ityp,ntyp=>nsp
 #if defined _RT
  use drivers,        ONLY:l_real_time
- use real_time,      ONLY:REF_V_xc_sc,REF_V_hartree_sc,rho_reference,magn_reference
-#endif
-#if defined _SC
- use drivers,        ONLY:l_sc_magnetic
 #endif
 #include<memory.h>
  !
- type(levels)             :: E
+ type(levels)             :: E ! This is so far not needed by the subroutine 
  type(bz_samp)            :: Xk,k
  !
  ! Work space
  !
- integer     :: ik,ikb,ib1,ib2,i_sp_pol,WFbands(2)
+ integer     :: ik,ikb,ib1,ib2,i_sp_pol,WFbands(2),na,nt
  !
  Hzero=cZERO
  Hext_nl=cZERO
@@ -66,15 +57,19 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  if (pp_is_uspp) call error("[PPs] Currently, USPP not implemented for ED")
  !
  ! WF Loading
- !=======================================
+ !
+ ! (NB: this turns pp_is_uspp to .true., later on it is restored to .false.)
+ !=====================================================================
  WFbands=(/H_ref_bands(1),max(H_ref_bands(2),maxval(E%nbm))/)
  call WF_load(WF,WF_G_max,WF_Go_indx,WFbands,(/1,nkibz/),title='-SC')
  !
- ! The Hzero = T + Hext = -P**2./2. + V_ext^loc + V_ext^nl is computed directly:
+ ! Calculation of Hzero
  !
- ! Hzero_n,m = P**2/2. + vloc + sum_ij [becp%k(i,n)]* D_ij * becp%k(j,m)
+ ! Hzero = T + Hext = -P**2./2. + V_ext^loc + V_ext^nl
  !
- !========================================
+ ! Hzero_n,m = P**2/2. + vloc + sum_i [becp%k(i,n)]* D_i * becp%k(j,m)
+ !
+ !=======================================================================
  do i_sp_pol=1,n_sp_pol
    !
    do ik=1,QP_nk
@@ -82,17 +77,50 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
      write (*,*) "H_pseudo (ik,i_sp_pol) ",ik,i_sp_pol
      !
      ! Calculate the nonlocal part of Hext ...
-     ! =========================================
+     !
+     ! (Spin-orbit / Non-collinear cases thus far not implemented.
+     !  Use deeq_nc insted of deeq for those?)
+     ! =================================================================
      !
      Hext_nl=cZERO
      do ib1=H_ref_bands(1),H_ref_bands(2)
        do ib2=H_ref_bands(1),H_ref_bands(2)
-         !Hext_nl(ib1,ib2) = dot_product( conjg(becp(ik,i_sp_pol)%k(:,ib1)), becp(ik,i_sp_pol)%k(:,ib2) )
-         do ikb=1,nkb
-           !
-           Hext_nl(ib1,ib2) = Hext_nl(ib1,ib2) + conjg(becp(ik,i_sp_pol)%k(ikb,ib1)) * becp(ik,i_sp_pol)%k(ikb,ib2)
+         !
+         ! NB: Unlike for (i) the dipoles or (ii) the Pseudo_Hamiltonian cases,
+         !     here we have to *explicitly* use the (diagonal?) deeq factors to
+         !     compute the pseudo Hamiltonian matrix elements since deeq is *not*
+         !     already diagonalised and incorporated into the KB projectors.
+         !
+         ! The procedure is adapted from add_vuspsi_k() in PW/src/add_vuspsi.f90
+         ! =================================================================
+         ikb = 0
+         do nt=1,ntyp
+           
+           if ( nh(nt) == 0 ) cycle
+           
+           do na=1,nat
+             !
+             if ( ityp(na) == nt ) then
+               !     
+               Hext_nl(ib1,ib2) = Hext_nl(ib1,ib2) + &
+                                  conjg(becp(ik,i_sp_pol)%k(ikb_i(na)+1,ib1)) * &
+                                                        deeq(1,1,na,i_sp_pol) * &
+                                        becp(ik,i_sp_pol)%k(ikb_i(na)+1,ib2)
+               !
+               ikb = ikb + 1
+             endif
+             !
+           enddo
            !
          enddo
+         !
+         ! ikb and nkb are here just for debugging, may be removed
+         if (ikb/=nkb) call error("[Pseudo Ham.] Something wrong in counting KB projectors and deeq")
+         !do ikb=1,nkb
+           !
+           !Hext_nl(ib1,ib2) = Hext_nl(ib1,ib2) + conjg(becp(ik,i_sp_pol)%k(ikb,ib1)) * becp(ik,i_sp_pol)%k(ikb,ib2)
+           !
+         !enddo
        enddo
      enddo
      !

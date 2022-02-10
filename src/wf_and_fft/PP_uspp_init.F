@@ -2,7 +2,7 @@
 !        Copyright (C) 2000-2021 the YAMBO team
 !              http://www.yambo-code.org
 !
-! Authors (see AUTHORS file for details): AF, IM
+! Authors (see AUTHORS file for details): AF, IM, FP
 !
 ! This file is distributed under the terms of the GNU
 ! General Public License. You can redistribute it and/or
@@ -79,7 +79,7 @@ subroutine PP_uspp_init()
  ! [FP] 
 #ifndef _USPP
  if (pp_is_uspp.and..not.l_will_need_becp) then
-   call error("[PPs] Ultrasoft PP not supported")
+   call error("[PPs] Ultrasoft PP not supported. [Is ns.uspp_pp_pwscf present but should not?]")
  endif
 #endif
  !
@@ -158,7 +158,67 @@ subroutine PP_uspp_init()
 &                .false.,strf,.true.,qe_eigts1,qe_eigts2,qe_eigts3)
  YAMBO_FREE(strf)
  !
+ ! [FP] Compute D_ij coefficients  
+ if (l_use_p2_becp) call PP_compute_deeq()
+ ! [FP]
+ !
  call timing("PP_uspp_init","stop")
  return
  !
 end subroutine PP_uspp_init
+
+subroutine PP_compute_deeq()
+ !
+ ! This subroutine gets the D-term needed to compute the
+ ! nonlocal part of the Hamiltonian together with the KB
+ ! projectors.
+ !
+ ! Adapted from subroutine newd() in PW/src/newd.f90 in QE (ovkan=.false. case).
+ !
+ ! USPP part (Q function) NOT implemented.
+ !
+ use pars,                   ONLY:SP,DP
+ use pseudo,                 ONLY:l_use_p2_becp
+ ! data already stored by p2y
+ use uspp,                   ONLY:deeq,deeq_nc,dvan,dvan_so
+ use uspp_param,             ONLY:nh
+ use ions_base,              ONLY:nat,ityp
+ use lsda_mod,               ONLY:nspin
+ use noncollin_module,       ONLY: noncolin
+ ! qe_pseudo internal modules
+ use spin_orb,               ONLY:qe_lspinorb=>lspinorb
+ !
+ ! Work Space
+ !
+ integer :: nt, na, is, nht
+ ! counters atom type, atoms, spin, aux
+ !
+ do na = 1, nat
+   !
+   nt  = ityp(na)
+   nht = nh(nt)
+   !
+   if ( qe_lspinorb ) then
+     !
+     deeq_nc(1:nht,1:nht,na,1:nspin) = dvan_so(1:nht,1:nht,1:nspin,nt)
+     !
+   elseif ( noncolin ) then
+     !
+     deeq_nc(1:nht,1:nht,na,1) = dvan(1:nht,1:nht,nt)
+     deeq_nc(1:nht,1:nht,na,2) = ( 0.D0, 0.D0 )
+     deeq_nc(1:nht,1:nht,na,3) = ( 0.D0, 0.D0 )
+     deeq_nc(1:nht,1:nht,na,4) = dvan(1:nht,1:nht,nt)
+     !
+   else
+     !
+     do is = 1, nspin
+       !
+       deeq(1:nht,1:nht,na,is) = dvan(1:nht,1:nht,nt)
+       !
+     enddo
+     !
+   endif
+   !
+ enddo
+ !
+end subroutine
