@@ -58,6 +58,7 @@ subroutine PP_uspp_init()
  integer, external :: io_USPP_pwscf
 
  call parser('BareHfromBecp', l_will_need_becp)
+ if (.not.l_will_need_becp) return
  !
  ! in case, assume qe_pseudo already alloc and init
  !
@@ -68,6 +69,7 @@ subroutine PP_uspp_init()
    call PP_uspp_alloc()
  endif
  ! [FP] 
+
  !
  ! perform main data IO
  !
@@ -82,6 +84,10 @@ subroutine PP_uspp_init()
    call error("[PPs] Ultrasoft PP not supported. [Is ns.uspp_pp_pwscf present but should not?]")
  endif
 #endif
+ !
+ ! atom mapping
+ !
+ call atom_mapper(qe_nat,real(qe_tau*qe_alat,SP),"cc",qe_atoms_map)
  !
  if ((pp_is_uspp.and.l_will_need_becp.and..not.l_use_p2_becp).or.&
     (.not.pp_is_uspp.or.nkb<=0)) then
@@ -109,11 +115,6 @@ subroutine PP_uspp_init()
  !
  qe_nsym=nsym
  call d_matrix(nsym,real(dl_sop,DP),d1,d2,d3)
-
- !
- ! atom mapping
- !
- call atom_mapper(qe_nat,real(qe_tau*qe_alat,SP),"cc",qe_atoms_map)
  
  !
  ! init g vectors and structure factors

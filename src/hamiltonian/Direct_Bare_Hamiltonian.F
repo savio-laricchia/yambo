@@ -23,7 +23,7 @@
 !
 subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  !
- use pars,           ONLY:cZERO
+ use pars,           ONLY:SP,cZERO
  use electrons,      ONLY:levels,n_sp_pol
  use QP_m,           ONLY:QP_nk
  use interfaces,     ONLY:WF_load
@@ -33,7 +33,7 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  use wave_func,      ONLY:WF
  use R_lattice,      ONLY:bz_samp,nkibz
  use timing_m,       ONLY:timing
- use pseudo,         ONLY:becp,pp_is_uspp
+ use pseudo,         ONLY:becp,pp_is_uspp,qe_atoms_map
  use uspp,           ONLY:nkb,ikb_i=>indv_ijkb0,deeq!,deeq_nc
  use uspp_param,     ONLY:nh
  use ions_base,      ONLY:nat,ityp,ntyp=>nsp
@@ -47,7 +47,7 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  !
  ! Work space
  !
- integer     :: ik,ikb,ib1,ib2,i_sp_pol,WFbands(2),na,nt,i1,i2
+ integer     :: ik,ikb,ib1,ib2,i_sp_pol,WFbands(2),na,nt,i1,i2,ia_qe,ia_per_type
  !
  Hzero=cZERO
  Hext_nl=cZERO
@@ -100,16 +100,24 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
            !
            if ( nh(nt) == 0 ) cycle
            !
+           ia_per_type=0
            do na=1,nat
              !
              if ( ityp(na) == nt ) then
-               !     
+               ia_per_type=ia_per_type+1
+               !
+               ia_qe=qe_atoms_map(ia_per_type,nt)
+               !
+               !write(*,*) nt,na,ia_qe,ikb_i(na)
+               !
                do i1=1,nh(nt) ! number of projectors for atom na which is of species nt
                  do i2=1,nh(nt) ! deeq is nondiagonal if more than one projector per atom
+                   
+                   !write(*,*) i1,i2,deeq(i1,i2,ia_qe,i_sp_pol)
                    !
                    Hext_nl(ib1,ib2) = Hext_nl(ib1,ib2) + &
-                                      conjg(becp(ik,i_sp_pol)%k(ikb_i(na)+i1,ib1)) * &
-                                                           deeq(i1,i2,na,i_sp_pol) * &
+                                      conjg(becp(ik,i_sp_pol)%k(ikb_i(na)+i1,ib1))       * &
+                                       deeq(i1,i2,ia_qe,i_sp_pol)/2._SP * &
                                             becp(ik,i_sp_pol)%k(ikb_i(na)+i2,ib2)
                  enddo
                  ikb = ikb +1  
