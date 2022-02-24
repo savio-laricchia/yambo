@@ -223,3 +223,16 @@ subroutine PP_compute_deeq()
  enddo
  !
 end subroutine
+
+subroutine PP_compute_Vloc()
+ !
+ ! This subroutine gets the Vloc in G-space
+ !
+ ! Adapted from subroutine setlocal() in PW/src/setlocal.f90 in QE
+ !
+ ! 2D cutoff and ESM not supported.
+ !
+ use pars,                   ONLY:DP
+ ! qe_pseudo internal modules
+
+end subroutine PP_compute_Vloc
