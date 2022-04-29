@@ -19,10 +19,12 @@ subroutine vloc_of_g (mesh, msh, rab, r, vloc_at, zp, tpiba2, ngl, &
   !    This is the "alpha" in the so-called "alpha Z" term of the energy.
   !    Atomic Ry units everywhere.
   !
+  !   [FP] Unit check (Ry or Ha for yambo)
+  !
   USE kinds
   USE constants, ONLY : pi, fpi, e2, eps8
-  USE esm, ONLY : do_comp_esm, esm_bc
-  USE Coul_cut_2D, ONLY: do_cutoff_2D, lz 
+  !USE esm, ONLY : do_comp_esm, esm_bc
+  !USE Coul_cut_2D, ONLY: do_cutoff_2D, lz 
   implicit none
   !
   !    first the dummy variables
@@ -62,33 +64,13 @@ subroutine vloc_of_g (mesh, msh, rab, r, vloc_at, zp, tpiba2, ngl, &
      !
      ! first the G=0 term
      !
-     IF ( do_comp_esm .and. ( esm_bc .ne. 'pbc' ) ) THEN
-        !
-        ! ... temporarily redefine term for ESM calculation
-        !
-        do ir = 1, msh
-           aux (ir) = r (ir) * (r (ir) * vloc_at (ir) + zp * e2    &
-                      * qe_erf (r (ir) ) )
-        enddo
-!	 TS This is necessary if we want to calculate the G=0 term correctly 
-!     when cutoff.
-! ==============================================
-
-     ELSE IF (do_cutoff_2D) THEN 
-        do ir = 1, msh
-            aux (ir) = r (ir) * (r (ir) * vloc_at (ir) + zp * e2    &
-                       * qe_erf (r (ir) ) )
-        enddo
-        IF (r(msh) > lz) THEN 
-           call errore('vloc_of_g','2D cutoff is smaller than pseudo cutoff radius: &
-          & increase interlayer distance (or see Modules/read_pseudo.f90)',1)
-        END IF
-! ==============================================
-     ELSE
-        do ir = 1, msh
-           aux (ir) = r (ir) * (r (ir) * vloc_at (ir) + zp * e2)
-        enddo
-     END IF
+     ! [FP] QE esm and 2D_cutoff for G=0 go here. So far not supported.
+     !      Check the original subroutine of the same name in QE.
+     !
+     do ir = 1, msh
+        aux (ir) = r (ir) * (r (ir) * vloc_at (ir) + zp * e2)
+     enddo
+     !
      call simpson (msh, aux, rab, vlcp)
      vloc (1) = vlcp        
      igl0 = 2
@@ -113,19 +95,13 @@ subroutine vloc_of_g (mesh, msh, rab, r, vloc_at, zp, tpiba2, ngl, &
         aux (ir) = aux1 (ir) * sin (gx * r (ir) ) / gx
      enddo
      call simpson (msh, aux, rab, vlcp)
-     ! if 2D cutoff calculation, do not re-add the FT of erf function
-     IF ( ( .not. do_comp_esm ) .or. ( esm_bc .eq. 'pbc' ) ) THEN
-        !
-        !   here we re-add the analytic fourier transform of the erf function
-        !
-        IF (.not. do_cutoff_2D) THEN
-           vlcp = vlcp - fac * exp ( - gl (igl) * tpiba2 * 0.25d0) / gl (igl)
-        ENDIF
-     END IF
+     !
+     ! [FP] QE esm and cutoff_2D for G<>0 go here.
+     !
      vloc (igl) = vlcp
   enddo
   vloc (:) = vloc(:) * fpi / omega
   deallocate (aux, aux1)
 
-return
+!return
 end subroutine vloc_of_g

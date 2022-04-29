@@ -27,7 +27,7 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  use electrons,      ONLY:levels,n_sp_pol
  use QP_m,           ONLY:QP_nk
  use interfaces,     ONLY:WF_load
- use hamiltonian,    ONLY:Hzero,H_ref_bands,WF_G_max,WF_Go_indx,Hext_nl!,E_reference
+ use hamiltonian,    ONLY:Hzero,H_ref_bands,WF_G_max,WF_Go_indx,Hext_nl,Hext_loc!,E_reference
  use parallel_m,     ONLY:PAR_IND_WF_k
  use parallel_int,   ONLY:PP_redux_wait
  use wave_func,      ONLY:WF
@@ -37,6 +37,7 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  use uspp,           ONLY:nkb,ikb_i=>indv_ijkb0,deeq!,deeq_nc
  use uspp_param,     ONLY:nh
  use ions_base,      ONLY:nat,ityp,ntyp=>nsp
+ use vlocal,         ONLY:vloc_Gfull
 #if defined _RT
  use drivers,        ONLY:l_real_time
 #endif
@@ -49,8 +50,9 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  !
  integer     :: ik,ikb,ib1,ib2,i_sp_pol,WFbands(2),na,nt,i1,i2,ia_qe,ia_per_type
  !
- Hzero=cZERO
- Hext_nl=cZERO
+ Hzero   =cZERO
+ Hext_nl =cZERO
+ Hext_loc=cZERO
  !
  call timing('Direct_Bare_Hamiltonian',OPR='start')
  !
@@ -75,12 +77,19 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
    !
    do ik=1,QP_nk
      !
+     ! Calculate the local part of Hext ...
+     ! 
+     ! This is a sandwich in G-space of vloc(G) with the wave functions
+     ! ==================================================================
+     !
+     ! USE vloc_Gfull
+     !
      write (*,*) "H_pseudo (ik,i_sp_pol) ",ik,i_sp_pol
      !
      ! Calculate the nonlocal part of Hext ...
      !
      ! (Spin-orbit / Non-collinear cases thus far not implemented.
-     !  Use deeq_nc insted of deeq for those?)
+     !  Use deeq_nc insted of deeq for those)
      ! =================================================================
      !
      Hext_nl=cZERO
@@ -146,7 +155,7 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
      ! Fill Hzero
      ! ==============
      !
-     Hzero(:,:,ik,i_sp_pol) = Hzero(:,:,ik,i_sp_pol) + Hext_nl(:,:)
+     Hzero(:,:,ik,i_sp_pol) = Hzero(:,:,ik,i_sp_pol) + Hext_loc(:,:) + Hext_nl(:,:)
      !
 #if defined _RT
      if(l_real_time) then

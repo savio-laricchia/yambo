@@ -157,11 +157,15 @@ subroutine PP_uspp_init()
  call struc_fact(qe_nat,qe_tau,qe_nsp,qe_ityp,qe_ngm,qe_g,qe_b,&
 &                nfft(1),nfft(2),nfft(3), &
 &                .false.,strf,.true.,qe_eigts1,qe_eigts2,qe_eigts3)
- YAMBO_FREE(strf)
  !
- ! [FP] Compute D_ij coefficients  
+ ! [FP] Now that we have the structure factors, compute vloc
+ if (l_use_p2_becp) call PP_compute_Vloc(strf)
+ !
+ ! [FP] Compute D_ij coefficients for nonlocal part of PP 
  if (l_use_p2_becp) call PP_compute_deeq()
  ! [FP]
+ !
+ YAMBO_FREE(strf)
  !
  call timing("PP_uspp_init","stop")
  return
@@ -224,7 +228,7 @@ subroutine PP_compute_deeq()
  !
 end subroutine
 
-subroutine PP_compute_Vloc()
+subroutine PP_compute_Vloc(strf)
  !
  ! This subroutine gets the Vloc in G-space
  !
@@ -232,7 +236,58 @@ subroutine PP_compute_Vloc()
  !
  ! 2D cutoff and ESM not supported.
  !
- use pars,                   ONLY:DP
  ! qe_pseudo internal modules
-
+ use pars,           ONLY: DP
+ use constants,      ONLY: eps8
+ use ions_base,      ONLY: zv, ntyp => nsp
+ use cell_base,      ONLY: omega
+ use gvect,          ONLY: igtongl, gg, ngm
+ use vlocal,         ONLY: qe_vloc => vloc, vloc_Gfull
+ use fft_base,       ONLY: dfftp
+ use control_flags,  ONLY: gamma_only
+ !use mp_bands,       ONLY: intra_bgrp_comm
+ !use mp,             ONLY: mp_sum
+ !
+ ! - qe_vloc contains the G-components per atomic species
+ ! - vloc_Gfull is the actual vloc(G) including the structure factors
+ !   (called 'aux' in original QE routine since they just used it for invfft)
+ !
+ complex(DP) :: strf
+ !
+ ! Work space
+ !
+ INTEGER :: nt, ng
+ ! counter on atom types
+ ! counter on g vectors
+ !
+ vloc_Gfull(:) = (0.d0,0.d0)
+ !
+ ! Compute vloc
+ !
+ call init_vloc()
+ !
+ ! Compute vloc_Gfull
+ !
+ do nt = 1, ntyp
+    do ng = 1, ngm
+       vloc_Gfull(dfftp%nl(ng)) = vloc_Gfull(dfftp%nl(ng)) + vloc(igtongl(ng),nt) &
+                                  * strf(ng,nt)
+    enddo
+ enddo
+ !
+ if (gamma_only) then
+    do ng = 1, ngm
+       vloc_Gfull(dfftp%nlm(ng)) = CONJG( vloc_Gfull(dfftp%nl(ng)) )
+    enddo
+ endif
+ !
+ ! ... v_of_0 is (Vloc)(G=0)
+ !
+ !v_of_0 = 0.0_DP
+ !IF (gg(1) < eps8) v_of_0 = DBLE( vloc_Gfull(dfftp%nl(1)) )
+ !
+ !CALL mp_sum( v_of_0, intra_bgrp_comm )
+ !
+ ! ... vloc_Gfull = potential in G-space.
+ !
 end subroutine PP_compute_Vloc

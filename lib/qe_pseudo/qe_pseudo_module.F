@@ -43,6 +43,7 @@ module qe_pseudo_m
   use pseudo_types
   use becmod
   use symm_base
+  use vlocal
   implicit none
 
 contains
@@ -60,7 +61,12 @@ contains
     allocate(tau(3,nat))
     !
     call allocate_nlpot()
-    ! 
+    !
+    ! [FP]
+    if (.not.allocated(vloc))       allocate(vloc(ngl,nsp))
+    if (.not.allocated(vloc_Gfull)) allocate(vloc_Gfull(dfftp%nnr))
+    ! [FP] 
+    !
   end subroutine
 
   subroutine qe_pseudo_deallocate()
@@ -96,6 +102,11 @@ contains
     if (allocated(eigts1)) deallocate(eigts1)
     if (allocated(eigts2)) deallocate(eigts2)
     if (allocated(eigts3)) deallocate(eigts3)
+    !
+    ! [FP]
+    if (allocated(vloc))         deallocate(vloc)
+    if (allocated(vloc_Gfull))   deallocate(vloc_Gfull)
+    ! [FP]
     !
   end subroutine qe_pseudo_deallocate
 

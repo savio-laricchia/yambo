@@ -17,64 +17,33 @@ SUBROUTINE init_vloc()
   USE kinds,          ONLY : DP
   USE uspp_param,     ONLY : upf
   USE ions_base,      ONLY : ntyp => nsp
-  USE cell_base,      ONLY : omega, tpiba2
+  USE cell_base,      ONLY : omega, tpiba ! [FP] tpiba2 not in module
   USE vlocal,         ONLY : vloc
   USE gvect,          ONLY : ngl, gl
-  USE Coul_cut_2D,    ONLY : do_cutoff_2D, cutoff_lr_Vloc
+  !USE Coul_cut_2D,    ONLY : do_cutoff_2D, cutoff_lr_Vloc
   !
   IMPLICIT NONE
   !
   INTEGER :: nt
   ! counter on atomic types
   !
-  !CALL start_clock( 'init_vloc' )
-  !
   vloc(:,:) = 0._DP
   !
-  DO nt = 1, ntyp
+  do nt = 1, ntyp
      !
      ! compute V_loc(G) for a given type of atom
      !
-     !IF ( .NOT. ASSOCIATED( upf(nt)%vloc ) ) THEN
-        !
-        !IF ( upf(nt)%is_gth ) THEN
-           !
-           ! special case: GTH pseudopotential
-           !
-           !CALL vloc_gth( nt, upf(nt)%zp, tpiba2, ngl, gl, omega, vloc(1,nt) )
-           !
-        !ELSE
-           !
-           ! special case: pseudopotential is coulomb 1/r potential
-           !
-           !CALL vloc_coul( upf(nt)%zp, tpiba2, ngl, gl, omega, vloc(1,nt) )
-           !
-        !ENDIF
-        !
-     !ELSE
-        !
-        ! normal case
-        !
-        CALL vloc_of_g( rgrid(nt)%mesh, msh(nt), rgrid(nt)%rab, rgrid(nt)%r, &
-                        upf(nt)%vloc(1), upf(nt)%zp, tpiba2, ngl, gl, omega, &
-                        vloc(1,nt) )
-        !
-     !ENDIF
+     ! [FP] We only consider the normal case. Check the original
+     !      QE subroutine of the same name for more options
      !
-  ENDDO
+     ! normal case
+     !
+     call vloc_of_g( rgrid(nt)%mesh, msh(nt), rgrid(nt)%rab, rgrid(nt)%r, &
+                     upf(nt)%vloc(1), upf(nt)%zp, tpiba**2._DP, ngl, gl, omega, vloc(1,nt) )
+     !
+  enddo
   !
-  ! in 2D calculations the long range part of vloc(g) (erf/r part)
-  ! was not re-added in g-space because everything is caclulated in
-  ! radial coordinates, which is not compatible with 2D cutoff. 
-  ! It will be re-added each time vloc(g) is used in the code. 
-  ! Here, this cutoff long-range part of vloc(g) is computed only once
-  ! by the routine below and stored
-  !
-  IF (do_cutoff_2D) CALL cutoff_lr_Vloc() 
-  !
-  !CALL stop_clock( 'init_vloc' )
-  !
-  RETURN
+  ! [FP] QE cutoff_2D goes here. Not supported so far
   !
 END SUBROUTINE init_vloc
 
