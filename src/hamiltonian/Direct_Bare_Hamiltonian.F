@@ -30,7 +30,8 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  use hamiltonian,    ONLY:Hzero,H_ref_bands,WF_G_max,WF_Go_indx,Hext_nl,Hext_loc!,E_reference
  use parallel_m,     ONLY:PAR_IND_WF_k
  use parallel_int,   ONLY:PP_redux_wait
- use wave_func,      ONLY:WF
+ use wave_func,      ONLY:WF!,wf_ng
+ use gvect,          ONLY:ngm
  use R_lattice,      ONLY:bz_samp,nkibz
  use timing_m,       ONLY:timing
  use pseudo,         ONLY:becp,pp_is_uspp,qe_atoms_map
@@ -38,6 +39,7 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  use uspp_param,     ONLY:nh
  use ions_base,      ONLY:nat,ityp,ntyp=>nsp
  use vlocal,         ONLY:vloc_Gfull
+ use wrapper,        ONLY:Vstar_dot_V
 #if defined _RT
  use drivers,        ONLY:l_real_time
 #endif
@@ -63,38 +65,43 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  ! (NB: this turns pp_is_uspp to .true., later on it is restored to .false.)
  !=====================================================================
  WFbands=(/H_ref_bands(1),max(H_ref_bands(2),maxval(E%nbm))/)
- call WF_load(WF,WF_G_max,WF_Go_indx,WFbands,(/1,nkibz/),title='-SC')
+ call WF_load(WF,WF_G_max,WF_Go_indx,WFbands,(/1,nkibz/),space='G',title='-SC')
+ write (*,*) shape(WF%c),ngm
  !
  ! Calculation of Hzero
  !
  ! Hzero = T + Hext = -P**2./2. + V_ext^loc + V_ext^nl
  !
- ! Hzero_n,m = P**2/2. + vloc + sum_i [becp%k(i,n)]* D_i * becp%k(j,m)
+ ! Hzero_n,m = P**2/2. + sum_G [WF%c(G,n)]* Vloc(G) * WF%c(G,m)  + sum_i [becp%k(i,n)]* D_ij * becp%k(j,m)
  !
- !=======================================================================
+ !=======================================================================================================
  !
  do i_sp_pol=1,n_sp_pol
    !
    do ik=1,QP_nk
      !
-     ! Calculate the local part of Hext ...
-     ! 
-     ! This is a sandwich in G-space of vloc(G) with the wave functions
-     ! ==================================================================
-     !
-     ! USE vloc_Gfull
-     !
      write (*,*) "H_pseudo (ik,i_sp_pol) ",ik,i_sp_pol
      !
-     ! Calculate the nonlocal part of Hext ...
-     !
-     ! (Spin-orbit / Non-collinear cases thus far not implemented.
-     !  Use deeq_nc insted of deeq for those)
-     ! =================================================================
-     !
+     Hext_loc=cZERO
      Hext_nl=cZERO
      do ib1=H_ref_bands(1),H_ref_bands(2)
        do ib2=H_ref_bands(1),H_ref_bands(2)
+         !
+         !
+         ! Calculate the local part of Hext ...
+         !
+         ! This is a sandwich in G-space of vloc(G) with the wave functions
+         ! ==================================================================
+         !ib1_wf = WF%index(ib1,ik,i_sp_pol)
+         !ib2_wf = WF%index(ib2,ik,i_sp_pol)
+         !
+         ![FP] Check if Vstar_dot_V works as I suppose with three arguments
+         !Hext_loc(ib1,ib2) = Vstar_dot_V(WF%c(:,i_sp_pol,ib1_wf),Vloc_Gfull(:),WF%c(:,i_sp_pol,ib2_wf))
+         !
+         ! Calculate the nonlocal part of Hext ...
+         !
+         ! (Spin-orbit / Non-collinear cases thus far not implemented.
+         !  Use deeq_nc insted of deeq for those)
          !
          ! NB: Unlike for (i) the dipoles or (ii) the Pseudo_Hamiltonian cases,
          !     here we have to *explicitly* use the nondiagonal deeq matrix to
@@ -168,7 +175,9 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  enddo
  !
  call PP_redux_wait(Hzero)
- pp_is_uspp=.false.
+ pp_is_uspp=.false. 
+ ! Here we call again WF_load in default (real) space for compatibility with SC driver 
+ call WF_load(WF,WF_G_max,WF_Go_indx,WFbands,(/1,nkibz/),title='-SC')
  !
  write(*,*) "End of Direct hamiltonian "
  !

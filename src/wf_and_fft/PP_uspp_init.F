@@ -159,7 +159,7 @@ subroutine PP_uspp_init()
 &                .false.,strf,.true.,qe_eigts1,qe_eigts2,qe_eigts3)
  !
  ! [FP] Now that we have the structure factors, compute vloc
- if (l_use_p2_becp) call PP_compute_Vloc(strf)
+ !if (l_use_p2_becp) call PP_compute_Vloc(strf)
  !
  ! [FP] Compute D_ij coefficients for nonlocal part of PP 
  if (l_use_p2_becp) call PP_compute_deeq()
@@ -243,7 +243,8 @@ subroutine PP_compute_Vloc(strf)
  use cell_base,      ONLY: omega
  use gvect,          ONLY: igtongl, gg, ngm
  use vlocal,         ONLY: qe_vloc => vloc, vloc_Gfull
- use fft_base,       ONLY: dfftp
+ !use fft_base,       ONLY: dfftp
+ use FFT_m,          ONLY:fft_size
  use control_flags,  ONLY: gamma_only
  !use mp_bands,       ONLY: intra_bgrp_comm
  !use mp,             ONLY: mp_sum
@@ -269,17 +270,22 @@ subroutine PP_compute_Vloc(strf)
  ! Compute vloc_Gfull
  !
  do nt = 1, ntyp
-    do ng = 1, ngm
-       vloc_Gfull(dfftp%nl(ng)) = vloc_Gfull(dfftp%nl(ng)) + vloc(igtongl(ng),nt) &
-                                  * strf(ng,nt)
+    do ng = 1, ngm ! NOTA BENE: ngm = dense G-vectors (per proc.) /= wf_ng 
+ !      vloc_Gfull(dfftp%nl(ng)) = vloc_Gfull(dfftp%nl(ng)) + vloc(igtongl(ng),nt) &
+ !                                 * strf(ng,nt)
+       vloc_Gfull(ng) = vloc_Gfull(ng) + qe_vloc(igtongl(ng),nt) * strf(ng,nt)
     enddo
  enddo
  !
  if (gamma_only) then
     do ng = 1, ngm
-       vloc_Gfull(dfftp%nlm(ng)) = CONJG( vloc_Gfull(dfftp%nl(ng)) )
+ !      vloc_Gfull(dfftp%nlm(ng)) = CONJG( vloc_Gfull(dfftp%nl(ng)) )
+       vloc_Gfull(ng) = CONJG( vloc_Gfull(ng) )
     enddo
  endif
+ ! ... vloc_Gfull = potential in G-space.
+ !
+ ! [FP] The following QE part should not be needed. Commented.
  !
  ! ... v_of_0 is (Vloc)(G=0)
  !
@@ -287,7 +293,5 @@ subroutine PP_compute_Vloc(strf)
  !IF (gg(1) < eps8) v_of_0 = DBLE( vloc_Gfull(dfftp%nl(1)) )
  !
  !CALL mp_sum( v_of_0, intra_bgrp_comm )
- !
- ! ... vloc_Gfull = potential in G-space.
  !
 end subroutine PP_compute_Vloc

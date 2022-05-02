@@ -64,7 +64,8 @@ contains
     !
     ! [FP]
     if (.not.allocated(vloc))       allocate(vloc(ngl,nsp))
-    if (.not.allocated(vloc_Gfull)) allocate(vloc_Gfull(dfftp%nnr))
+    !if (.not.allocated(vloc_Gfull)) allocate(vloc_Gfull(dfftp%nnr))
+    if (.not.allocated(vloc_Gfull)) allocate(vloc_Gfull(ngm))
     ! [FP] 
     !
   end subroutine
