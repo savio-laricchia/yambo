@@ -483,9 +483,6 @@ subroutine WF_load(WF,iG_in,iGo_max_in,bands_to_load,kpts_to_load,sp_pol_to_load
  !
  ! CLEAN
  !
- ! [FP]
- write (*,*) WF%space
- ! [FP]
  if (.not.buffer_is_ok) then
    !
    call io_control(ACTION=RD_CL,COM=NONE,MODE=VERIFY,SEC=(/0/),ID=ID)

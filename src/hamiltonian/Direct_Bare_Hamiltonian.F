@@ -30,8 +30,8 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  use hamiltonian,    ONLY:Hzero,H_ref_bands,WF_G_max,WF_Go_indx,Hext_nl,Hext_loc!,E_reference
  use parallel_m,     ONLY:PAR_IND_WF_k
  use parallel_int,   ONLY:PP_redux_wait
- use wave_func,      ONLY:WF!,wf_ng
- use gvect,          ONLY:ngm
+ use wave_func,      ONLY:WF,wf_ng
+ !use gvect,          ONLY:ngm
  use R_lattice,      ONLY:bz_samp,nkibz
  use timing_m,       ONLY:timing
  use pseudo,         ONLY:becp,pp_is_uspp,qe_atoms_map
@@ -39,7 +39,7 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  use uspp_param,     ONLY:nh
  use ions_base,      ONLY:nat,ityp,ntyp=>nsp
  use vlocal,         ONLY:vloc_Gfull
- use wrapper,        ONLY:Vstar_dot_V
+ use wrapper,        ONLY:Vstar_dot_VV
 #if defined _RT
  use drivers,        ONLY:l_real_time
 #endif
@@ -51,6 +51,7 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  ! Work space
  !
  integer     :: ik,ikb,ib1,ib2,i_sp_pol,WFbands(2),na,nt,i1,i2,ia_qe,ia_per_type
+ integer     :: ib1_wf,ib2_wf,ig
  !
  Hzero   =cZERO
  Hext_nl =cZERO
@@ -66,7 +67,7 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  !=====================================================================
  WFbands=(/H_ref_bands(1),max(H_ref_bands(2),maxval(E%nbm))/)
  call WF_load(WF,WF_G_max,WF_Go_indx,WFbands,(/1,nkibz/),space='G',title='-SC')
- write (*,*) shape(WF%c),ngm
+ !write (*,*) shape(WF%c),ngm,wf_ng
  !
  ! Calculation of Hzero
  !
@@ -92,11 +93,14 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
          !
          ! This is a sandwich in G-space of vloc(G) with the wave functions
          ! ==================================================================
-         !ib1_wf = WF%index(ib1,ik,i_sp_pol)
-         !ib2_wf = WF%index(ib2,ik,i_sp_pol)
+         ib1_wf = WF%index(ib1,ik,i_sp_pol)
+         ib2_wf = WF%index(ib2,ik,i_sp_pol)
          !
-         ![FP] Check if Vstar_dot_V works as I suppose with three arguments
-         !Hext_loc(ib1,ib2) = Vstar_dot_V(WF%c(:,i_sp_pol,ib1_wf),Vloc_Gfull(:),WF%c(:,i_sp_pol,ib2_wf))
+         ! [FP] This loop should be made more efficient with a function/wrapper
+         do ig=1,wf_ng
+           Hext_loc(ib1,ib2) = Hext_loc(ib1,ib2) + &
+                        conjg(WF%c(ig,i_sp_pol,ib1_wf))*Vloc_Gfull(ig)*WF%c(ig,i_sp_pol,ib2_wf)
+         enddo
          !
          ! Calculate the nonlocal part of Hext ...
          !
@@ -132,8 +136,8 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
                    !write(*,*) i1,i2,deeq(i1,i2,ia_qe,i_sp_pol)
                    !
                    Hext_nl(ib1,ib2) = Hext_nl(ib1,ib2) + &
-                                      conjg(becp(ik,i_sp_pol)%k(ikb_i(na)+i1,ib1))       * &
-                                       deeq(i1,i2,ia_qe,i_sp_pol)/2._SP * &
+                                      conjg(becp(ik,i_sp_pol)%k(ikb_i(na)+i1,ib1)) * &
+                                                  deeq(i1,i2,ia_qe,i_sp_pol)/2._SP * &
                                             becp(ik,i_sp_pol)%k(ikb_i(na)+i2,ib2)
                  enddo
                  ikb = ikb +1  
@@ -157,6 +161,7 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
      !
      do ib1=H_ref_bands(1),H_ref_bands(2)
        write(*,*) Hext_nl(ib1,:)
+       !write(*,*) Hext_loc(ib1,:)
      enddo
      !
      ! Fill Hzero

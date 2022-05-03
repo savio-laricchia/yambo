@@ -42,7 +42,7 @@ subroutine PP_uspp_init()
  use gvect,         ONLY:qe_eigts1=>eigts1, qe_eigts2=>eigts2, qe_eigts3=>eigts3,&
 &                        qe_g=>g, qe_gg=>gg, qe_ngm=>ngm, qe_mill=>mill
  use timing_m,      ONLY:timing
- use parser_m,       ONLY:parser
+ use parser_m,      ONLY:parser
  !
 #include<memory.h>
  !
@@ -158,10 +158,11 @@ subroutine PP_uspp_init()
 &                nfft(1),nfft(2),nfft(3), &
 &                .false.,strf,.true.,qe_eigts1,qe_eigts2,qe_eigts3)
  !
- ! [FP] Now that we have the structure factors, compute vloc
- !if (l_use_p2_becp) call PP_compute_Vloc(strf)
+ ! [FP]
+ ! Now that we have the structure factors, compute vloc
+ if (l_use_p2_becp) call PP_compute_Vloc(strf)
  !
- ! [FP] Compute D_ij coefficients for nonlocal part of PP 
+ ! Compute D_ij coefficients for nonlocal part of PP 
  if (l_use_p2_becp) call PP_compute_deeq()
  ! [FP]
  !
@@ -239,9 +240,10 @@ subroutine PP_compute_Vloc(strf)
  ! qe_pseudo internal modules
  use pars,           ONLY: DP
  use constants,      ONLY: eps8
- use ions_base,      ONLY: zv, ntyp => nsp
+ !use ions_base,      ONLY: zv, ntyp => nsp
  use cell_base,      ONLY: omega
- use gvect,          ONLY: igtongl, gg, ngm
+ use gvect,          ONLY: igtongl, gg, qe_ngm => ngm
+ use qe_pseudo_m,    ONLY: qe_nsp => nsp
  use vlocal,         ONLY: qe_vloc => vloc, vloc_Gfull
  !use fft_base,       ONLY: dfftp
  use FFT_m,          ONLY:fft_size
@@ -253,7 +255,7 @@ subroutine PP_compute_Vloc(strf)
  ! - vloc_Gfull is the actual vloc(G) including the structure factors
  !   (called 'aux' in original QE routine since they just used it for invfft)
  !
- complex(DP) :: strf
+ complex(DP) :: strf(qe_ngm,qe_nsp)
  !
  ! Work space
  !
@@ -269,8 +271,8 @@ subroutine PP_compute_Vloc(strf)
  !
  ! Compute vloc_Gfull
  !
- do nt = 1, ntyp
-    do ng = 1, ngm ! NOTA BENE: ngm = dense G-vectors (per proc.) /= wf_ng 
+ do nt = 1, qe_nsp
+    do ng = 1, qe_ngm ! NOTA BENE: qe_ngm = dense G-vectors (per proc.) > wf_ng 
  !      vloc_Gfull(dfftp%nl(ng)) = vloc_Gfull(dfftp%nl(ng)) + vloc(igtongl(ng),nt) &
  !                                 * strf(ng,nt)
        vloc_Gfull(ng) = vloc_Gfull(ng) + qe_vloc(igtongl(ng),nt) * strf(ng,nt)
@@ -278,7 +280,7 @@ subroutine PP_compute_Vloc(strf)
  enddo
  !
  if (gamma_only) then
-    do ng = 1, ngm
+    do ng = 1, qe_ngm
  !      vloc_Gfull(dfftp%nlm(ng)) = CONJG( vloc_Gfull(dfftp%nl(ng)) )
        vloc_Gfull(ng) = CONJG( vloc_Gfull(ng) )
     enddo
