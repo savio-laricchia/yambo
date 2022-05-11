@@ -29,9 +29,6 @@ SUBROUTINE init_vloc()
   !
   vloc(:,:) = 0._DP
   !
-  write (*,*) shape(rgrid)
-  write (*,*) rgrid(1)%mesh, rgrid(1)%rab, rgrid(1)%r
-  !
   do nt = 1, ntyp
      !
      ! compute V_loc(G) for a given type of atom

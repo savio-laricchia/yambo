@@ -38,7 +38,7 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  use uspp,           ONLY:nkb,ikb_i=>indv_ijkb0,deeq!,deeq_nc
  use uspp_param,     ONLY:nh
  use ions_base,      ONLY:nat,ityp,ntyp=>nsp
- use vlocal,         ONLY:vloc_Gfull
+ use vlocal,         ONLY:vloc_full
  use wrapper,        ONLY:Vstar_dot_VV
 #if defined _RT
  use drivers,        ONLY:l_real_time
@@ -66,14 +66,14 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  ! (NB: this turns pp_is_uspp to .true., later on it is restored to .false.)
  !=====================================================================
  WFbands=(/H_ref_bands(1),max(H_ref_bands(2),maxval(E%nbm))/)
- call WF_load(WF,WF_G_max,WF_Go_indx,WFbands,(/1,nkibz/),space='G',title='-SC')
+ call WF_load(WF,WF_G_max,WF_Go_indx,WFbands,(/1,nkibz/),title='-SC')
  !write (*,*) shape(WF%c),ngm,wf_ng
  !
  ! Calculation of Hzero
  !
  ! Hzero = T + Hext = -P**2./2. + V_ext^loc + V_ext^nl
  !
- ! Hzero_n,m = P**2/2. + sum_G [WF%c(G,n)]* Vloc(G) * WF%c(G,m)  + sum_i [becp%k(i,n)]* D_ij * becp%k(j,m)
+ ! Hzero_n,m = P**2/2. + int_r [WF%c(r,n)]* Vloc(r) * WF%c(r,m)  + sum_i [becp%k(i,n)]* D_ij * becp%k(j,m)
  !
  !=======================================================================================================
  !
@@ -91,16 +91,16 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
          !
          ! Calculate the local part of Hext ...
          !
-         ! This is a sandwich in G-space of vloc(G) with the wave functions
+         ! This is a sandwich in R-space of vloc(r) with the wave functions
          ! ==================================================================
          ib1_wf = WF%index(ib1,ik,i_sp_pol)
          ib2_wf = WF%index(ib2,ik,i_sp_pol)
          !
-         ! [FP] This loop should be made more efficient with a function/wrapper
-         do ig=1,wf_ng
-           Hext_loc(ib1,ib2) = Hext_loc(ib1,ib2) + &
-                        conjg(WF%c(ig,i_sp_pol,ib1_wf))*Vloc_Gfull(ig)*WF%c(ig,i_sp_pol,ib2_wf)
-         enddo
+         ! [FP] This loop should be done in real space
+         !!!do ig=1,wf_ng
+         !!!  Hext_loc(ib1,ib2) = Hext_loc(ib1,ib2) + &
+         !!!               conjg(WF%c(ig,i_sp_pol,ib1_wf))*vloc_full(ig)*WF%c(ig,i_sp_pol,ib2_wf)
+         !!!enddo
          !
          ! Calculate the nonlocal part of Hext ...
          !
@@ -181,8 +181,6 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  !
  call PP_redux_wait(Hzero)
  pp_is_uspp=.false. 
- ! Here we call again WF_load in default (real) space for compatibility with SC driver 
- call WF_load(WF,WF_G_max,WF_Go_indx,WFbands,(/1,nkibz/),title='-SC')
  !
  write(*,*) "End of Direct hamiltonian "
  !

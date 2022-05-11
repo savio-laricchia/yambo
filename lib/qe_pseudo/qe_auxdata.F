@@ -116,5 +116,5 @@ end module
 module vlocal
    use kinds, only : DP
    real(DP), allocatable    :: vloc(:,:)
-   complex(DP), allocatable :: vloc_Gfull(:)
+   complex(DP), allocatable :: vloc_full(:)
 end module

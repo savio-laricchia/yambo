@@ -38,7 +38,9 @@ subroutine p2y_pseudo(k)
  use IO_int,                ONLY:io_control
  use IO_m,                  ONLY:OP_WR_CL,OP_APP_CL,REP
  use read_pseudo_mod,       ONLY:readpp
- use mod_com2y,             ONLY : write_Vloc_Vnl
+ use mod_com2y,             ONLY:write_Vloc_Vnl
+ use pw_data,               ONLY:ngm_,nsp_
+ use vlocal,                ONLY:vloc
  !
  implicit none
  !
@@ -157,6 +159,11 @@ subroutine p2y_pseudo(k)
    ! [FP]
    call init_us_1()
    !
+   if (write_Vloc_Vnl) then
+     allocate(vloc(ngm_,nsp_))
+     call init_vloc()
+   endif
+   !
    call io_control(ACTION=OP_WR_CL,COM=REP,SEC=(/1/),ID=ID)
    io_err=io_USPP_pwscf(ID)
    !
@@ -168,6 +175,7 @@ subroutine p2y_pseudo(k)
  !
  call PP_free()
  deallocate(pp_table,pp_n_l_comp)
+ if (allocated(vloc)) deallocate(vloc) 
  !
  return
  !

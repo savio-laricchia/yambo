@@ -69,7 +69,6 @@ subroutine PP_uspp_init()
    call PP_uspp_alloc()
  endif
  ! [FP] 
-
  !
  ! perform main data IO
  !
@@ -99,7 +98,6 @@ subroutine PP_uspp_init()
    return
  endif
  
-
 
  !
  ! checks
@@ -231,7 +229,11 @@ end subroutine
 
 subroutine PP_compute_Vloc(strf)
  !
- ! This subroutine gets the Vloc in G-space
+ ! This subroutine multiplies the structure factors to the Vloc in G-space:
+ !
+ ! vloc_full(G) = sum_sp vloc(G,sp) * struct_factor(G,sp)
+ !
+ ! vloc (qe: vloc_of_g) is read from database [use p2y -p when generating SAVE]
  !
  ! Adapted from subroutine setlocal() in PW/src/setlocal.f90 in QE
  !
@@ -244,7 +246,7 @@ subroutine PP_compute_Vloc(strf)
  use cell_base,      ONLY: omega
  use gvect,          ONLY: igtongl, gg, qe_ngm => ngm
  use qe_pseudo_m,    ONLY: qe_nsp => nsp
- use vlocal,         ONLY: qe_vloc => vloc, vloc_Gfull
+ use vlocal,         ONLY: qe_vloc => vloc, vloc_full
  !use fft_base,       ONLY: dfftp
  use FFT_m,          ONLY:fft_size
  use control_flags,  ONLY: gamma_only
@@ -252,7 +254,7 @@ subroutine PP_compute_Vloc(strf)
  !use mp,             ONLY: mp_sum
  !
  ! - qe_vloc contains the G-components per atomic species
- ! - vloc_Gfull is the actual vloc(G) including the structure factors
+ ! - vloc_full is the actual vloc(G) including the structure factors
  !   (called 'aux' in original QE routine since they just used it for invfft)
  !
  complex(DP) :: strf(qe_ngm,qe_nsp)
@@ -263,36 +265,36 @@ subroutine PP_compute_Vloc(strf)
  ! counter on atom types
  ! counter on g vectors
  !
- vloc_Gfull(:) = (0.d0,0.d0)
+ vloc_full(:) = (0.d0,0.d0)
  !
  ! Compute vloc
  !
  call init_vloc()
  !
- ! Compute vloc_Gfull
+ ! Compute vloc_full
  !
  do nt = 1, qe_nsp
     do ng = 1, qe_ngm ! NOTA BENE: qe_ngm = dense G-vectors (per proc.) > wf_ng 
- !      vloc_Gfull(dfftp%nl(ng)) = vloc_Gfull(dfftp%nl(ng)) + vloc(igtongl(ng),nt) &
+ !      vloc_full(dfftp%nl(ng)) = vloc_full(dfftp%nl(ng)) + vloc(igtongl(ng),nt) &
  !                                 * strf(ng,nt)
-       vloc_Gfull(ng) = vloc_Gfull(ng) + qe_vloc(igtongl(ng),nt) * strf(ng,nt)
+       vloc_full(ng) = vloc_full(ng) + qe_vloc(igtongl(ng),nt) * strf(ng,nt)
     enddo
  enddo
  !
  if (gamma_only) then
     do ng = 1, qe_ngm
- !      vloc_Gfull(dfftp%nlm(ng)) = CONJG( vloc_Gfull(dfftp%nl(ng)) )
-       vloc_Gfull(ng) = CONJG( vloc_Gfull(ng) )
+ !      vloc_full(dfftp%nlm(ng)) = CONJG( vloc_full(dfftp%nl(ng)) )
+       vloc_full(ng) = CONJG( vloc_full(ng) )
     enddo
  endif
- ! ... vloc_Gfull = potential in G-space.
+ ! ... vloc_full = potential in G-space.
  !
  ! [FP] The following QE part should not be needed. Commented.
  !
  ! ... v_of_0 is (Vloc)(G=0)
  !
  !v_of_0 = 0.0_DP
- !IF (gg(1) < eps8) v_of_0 = DBLE( vloc_Gfull(dfftp%nl(1)) )
+ !IF (gg(1) < eps8) v_of_0 = DBLE( vloc_full(dfftp%nl(1)) )
  !
  !CALL mp_sum( v_of_0, intra_bgrp_comm )
  !
