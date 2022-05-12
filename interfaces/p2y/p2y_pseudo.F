@@ -52,12 +52,13 @@ subroutine p2y_pseudo(k)
  !
  ! Work space
  !
- integer        :: ngmax,ID,ibeta,ik,io_err,itype
+ integer        :: ngmax,ID,ibeta,ik,io_err,itype,ID_vloc
  character(64)  :: input_dft="none"
  !
  integer, external :: io_KB_pwscf
  integer, external :: io_NLCC_pwscf
  integer, external :: io_USPP_pwscf
+ integer, external :: io_VLOC_pwscf
  !
  interface
     subroutine fill_basis(basis,struct,ik,ngmax)
@@ -162,6 +163,10 @@ subroutine p2y_pseudo(k)
    if (write_Vloc_Vnl) then
      allocate(vloc(ngm_,nsp_))
      call init_vloc()
+     !
+     call io_control(ACTION=OP_WR_CL,COM=REP,SEC=(/1/),ID=ID_vloc)
+     io_err = io_VLOC_pwscf(ID_vloc)
+     !
    endif
    !
    call io_control(ACTION=OP_WR_CL,COM=REP,SEC=(/1/),ID=ID)

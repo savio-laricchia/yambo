@@ -39,7 +39,6 @@ integer function io_USPP_pwscf(ID)
 &                            qq_so, dvan_so, indv_ijkb0, nkb, nkbus, okvan,&
                              lpl, lpx, ap
  use uspp_param,       ONLY: upf, lmaxq, nbetam, nh, nhm, lmaxkb 
- use vlocal,           ONLY: vloc
  !
  implicit none
  !
@@ -178,13 +177,7 @@ integer function io_USPP_pwscf(ID)
    !
  enddo specie_loop
  !
- ! [FP] vloc in G space 
- ! So far the vloc is needed for ED which does NOT support USPP
- if (allocated(vloc)) then
-   call io_bulk(ID,VAR="vloc",VAR_SZ=shape(vloc))
-   call io_bulk(ID,D2=vloc)
- endif
- !
+ ! [FP]
 #ifndef _USPP
  nhtoj=0.d0 ! This is set to zero since not initialised in non-USPP case
 #endif

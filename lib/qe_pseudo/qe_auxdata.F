@@ -112,9 +112,3 @@ module symm_base
        d2(5,5,48),           &! harmonics (d1 for l=1, ...)
        d3(7,7,48)             !
 end module
-
-module vlocal
-   use kinds, only : DP
-   real(DP), allocatable    :: vloc(:,:)
-   complex(DP), allocatable :: vloc_full(:)
-end module

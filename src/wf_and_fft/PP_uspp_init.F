@@ -41,6 +41,7 @@ subroutine PP_uspp_init()
  use qe_pseudo_m,   ONLY:nkb,qe_nsym=>nsym,d1,d2,d3
  use gvect,         ONLY:qe_eigts1=>eigts1, qe_eigts2=>eigts2, qe_eigts3=>eigts3,&
 &                        qe_g=>g, qe_gg=>gg, qe_ngm=>ngm, qe_mill=>mill
+ use vlocal,        ONLY:strf,vloc_alloc,vloc_dealloc
  use timing_m,      ONLY:timing
  use parser_m,      ONLY:parser
  !
@@ -52,7 +53,7 @@ subroutine PP_uspp_init()
  integer  :: gv_min,gv_max,i,ig,nfft(3)
  real(SP) :: v1(3)
  real(DP) :: qe_b(3,3)
- complex(DP), allocatable :: strf(:,:)
+ !complex(DP), allocatable :: strf(:,:)
  logical :: l_will_need_becp
  !
  integer, external :: io_USPP_pwscf
@@ -66,7 +67,7 @@ subroutine PP_uspp_init()
  call timing("PP_uspp_init","start")
  ! [FP]
  if (l_use_p2_becp) then
-   call PP_uspp_alloc()
+   call PP_uspp_alloc() ! projectors for nonlocal part
  endif
  ! [FP] 
  !
@@ -148,7 +149,12 @@ subroutine PP_uspp_init()
  YAMBO_ALLOC(qe_eigts1,(-nfft(1):nfft(1),qe_nat))
  YAMBO_ALLOC(qe_eigts2,(-nfft(2):nfft(2),qe_nat))
  YAMBO_ALLOC(qe_eigts3,(-nfft(3):nfft(3),qe_nat))
- YAMBO_ALLOC(strf,(qe_ngm,qe_nsp))
+ ! [FP]
+ !AMBO_ALLOC(strf,(qe_ngm,qe_nsp))
+ !
+ ! Alloc vlocal quantities: strf and - if needed - vloc and vloc_full
+ call vloc_alloc()
+ ! [FP]
  !
  qe_b=transpose(b)/qe_tpiba
  !
@@ -157,14 +163,20 @@ subroutine PP_uspp_init()
 &                .false.,strf,.true.,qe_eigts1,qe_eigts2,qe_eigts3)
  !
  ! [FP]
- ! Now that we have the structure factors, compute vloc
- if (l_use_p2_becp) call PP_compute_Vloc(strf)
- !
- ! Compute D_ij coefficients for nonlocal part of PP 
- if (l_use_p2_becp) call PP_compute_deeq()
+ if (l_use_p2_becp) then
+   ! Now that we have the structure factors, compute vloc
+   call PP_compute_Vloc()
+   !
+   ! Compute D_ij coefficients for nonlocal part of PP 
+   call PP_compute_deeq()
+   !
+ else
+   !
+   ! Dealloc strf here
+   call vloc_dealloc()
+   !
+ endif
  ! [FP]
- !
- YAMBO_FREE(strf)
  !
  call timing("PP_uspp_init","stop")
  return
@@ -227,7 +239,7 @@ subroutine PP_compute_deeq()
  !
 end subroutine
 
-subroutine PP_compute_Vloc(strf)
+subroutine PP_compute_Vloc()
  !
  ! This subroutine multiplies the structure factors to the Vloc in G-space:
  !
@@ -246,7 +258,7 @@ subroutine PP_compute_Vloc(strf)
  use cell_base,      ONLY: omega
  use gvect,          ONLY: igtongl, gg, qe_ngm => ngm
  use qe_pseudo_m,    ONLY: qe_nsp => nsp
- use vlocal,         ONLY: qe_vloc => vloc, vloc_full
+ use vlocal,         ONLY: qe_vloc => vloc, vloc_full,strf
  !use fft_base,       ONLY: dfftp
  use FFT_m,          ONLY:fft_size
  use control_flags,  ONLY: gamma_only
@@ -257,7 +269,7 @@ subroutine PP_compute_Vloc(strf)
  ! - vloc_full is the actual vloc(G) including the structure factors
  !   (called 'aux' in original QE routine since they just used it for invfft)
  !
- complex(DP) :: strf(qe_ngm,qe_nsp)
+ !complex(DP) :: strf(qe_ngm,qe_nsp)
  !
  ! Work space
  !
@@ -266,10 +278,6 @@ subroutine PP_compute_Vloc(strf)
  ! counter on g vectors
  !
  vloc_full(:) = (0.d0,0.d0)
- !
- ! Compute vloc
- !
- call init_vloc()
  !
  ! Compute vloc_full
  !

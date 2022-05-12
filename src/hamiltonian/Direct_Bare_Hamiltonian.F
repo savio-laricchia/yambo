@@ -31,14 +31,13 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  use parallel_m,     ONLY:PAR_IND_WF_k
  use parallel_int,   ONLY:PP_redux_wait
  use wave_func,      ONLY:WF,wf_ng
- !use gvect,          ONLY:ngm
  use R_lattice,      ONLY:bz_samp,nkibz
  use timing_m,       ONLY:timing
  use pseudo,         ONLY:becp,pp_is_uspp,qe_atoms_map
  use uspp,           ONLY:nkb,ikb_i=>indv_ijkb0,deeq!,deeq_nc
  use uspp_param,     ONLY:nh
  use ions_base,      ONLY:nat,ityp,ntyp=>nsp
- use vlocal,         ONLY:vloc_full
+ use vlocal,         ONLY:vloc_full,vloc_dealloc
  use wrapper,        ONLY:Vstar_dot_VV
 #if defined _RT
  use drivers,        ONLY:l_real_time
@@ -67,7 +66,6 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  !=====================================================================
  WFbands=(/H_ref_bands(1),max(H_ref_bands(2),maxval(E%nbm))/)
  call WF_load(WF,WF_G_max,WF_Go_indx,WFbands,(/1,nkibz/),title='-SC')
- !write (*,*) shape(WF%c),ngm,wf_ng
  !
  ! Calculation of Hzero
  !
@@ -77,6 +75,7 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  !
  !=======================================================================================================
  !
+ write (*,*) "vloc_full SIZE: ", size(vloc_full)
  do i_sp_pol=1,n_sp_pol
    !
    do ik=1,QP_nk
@@ -180,6 +179,7 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  enddo
  !
  call PP_redux_wait(Hzero)
+ call vloc_dealloc() ! Dealloc here since we couldn't do it in PP_uspp_init
  pp_is_uspp=.false. 
  !
  write(*,*) "End of Direct hamiltonian "
