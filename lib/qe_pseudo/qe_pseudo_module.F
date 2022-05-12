@@ -63,7 +63,7 @@ contains
     call allocate_nlpot()
     !
     ! [FP]
-    if (.not.allocated(vloc))       allocate(vloc(ngm,nsp))
+    if (.not.allocated(vloc))       allocate(vloc(ngl,nsp))
     !if (.not.allocated(vloc_full)) allocate(vloc_full(dfftp%nnr))
     if (.not.allocated(vloc_full)) allocate(vloc_full(ngm))
     ! [FP] 

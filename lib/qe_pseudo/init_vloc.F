@@ -19,13 +19,16 @@ SUBROUTINE init_vloc()
   USE ions_base,      ONLY : ntyp => nsp
   USE cell_base,      ONLY : omega, tpiba ! [FP] tpiba2 not in module
   USE vlocal,         ONLY : vloc
-  USE gvect,          ONLY : ngl, gl
+  USE gvect,          ONLY : ngl, gl, gshells
   !USE Coul_cut_2D,    ONLY : do_cutoff_2D, cutoff_lr_Vloc
   !
   IMPLICIT NONE
   !
   INTEGER :: nt
   ! counter on atomic types
+  !
+  ! [FP] Generate shells: gl, ngl, igtongl
+  call gshells()
   !
   vloc(:,:) = 0._DP
   !
