@@ -49,7 +49,7 @@ subroutine PP_uspp_init()
  !
  ! Work Space 
  !
- integer  :: io_err,ID
+ integer  :: io_err,ID,ID_vloc
  integer  :: gv_min,gv_max,i,ig,nfft(3)
  real(SP) :: v1(3)
  real(DP) :: qe_b(3,3)
@@ -57,6 +57,7 @@ subroutine PP_uspp_init()
  logical :: l_will_need_becp
  !
  integer, external :: io_USPP_pwscf
+ integer, external :: io_VLOC_pwscf
 
  call parser('BareHfromBecp', l_will_need_becp)
  if (.not.l_will_need_becp) return
@@ -152,7 +153,7 @@ subroutine PP_uspp_init()
  ! [FP]
  !AMBO_ALLOC(strf,(qe_ngm,qe_nsp))
  !
- ! Alloc vlocal quantities: strf and - if needed - vloc and vloc_full
+ ! vlocal quantities: strf and - if needed - vloc and vloc_full
  call vloc_alloc()
  ! [FP]
  !
@@ -164,7 +165,11 @@ subroutine PP_uspp_init()
  !
  ! [FP]
  if (l_use_p2_becp) then
-   ! Now that we have the structure factors, compute vloc
+   !
+   ! Now that we have the structure factors, read and compute vloc
+   call io_control(ACTION=OP_RD_CL,COM=REP,SEC=(/1/),ID=ID_vloc)
+   io_err=io_VLOC_pwscf(ID_vloc)
+   !
    call PP_compute_Vloc()
    !
    ! Compute D_ij coefficients for nonlocal part of PP 
