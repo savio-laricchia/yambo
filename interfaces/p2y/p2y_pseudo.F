@@ -40,7 +40,7 @@ subroutine p2y_pseudo(k)
  use read_pseudo_mod,       ONLY:readpp
  use mod_com2y,             ONLY:write_Vloc_Vnl
  use pw_data,               ONLY:ngm_,nsp_
- use vlocal,                ONLY:vloc
+ use vlocal,                ONLY:vloc_yambo
  !
  implicit none
  !
@@ -161,8 +161,9 @@ subroutine p2y_pseudo(k)
    call init_us_1()
    !
    if (write_Vloc_Vnl) then
-     allocate(vloc(ngm_,nsp_))
-     call init_vloc()
+     !
+     allocate(vloc_yambo(ngm_,nsp_))
+     call set_vloc_yambo()
      !
      call io_control(ACTION=OP_WR_CL,COM=REP,SEC=(/1/),ID=ID_vloc)
      io_err = io_VLOC_pwscf(ID_vloc)
@@ -180,7 +181,7 @@ subroutine p2y_pseudo(k)
  !
  call PP_free()
  deallocate(pp_table,pp_n_l_comp)
- if (allocated(vloc)) deallocate(vloc) 
+ if (allocated(vloc_yambo)) deallocate(vloc_yambo) 
  !
  return
  !
@@ -340,3 +341,32 @@ subroutine fill_basis_rho(basis,struct,ngmax)
  ! 
  return
 end subroutine fill_basis_rho
+!
+subroutine set_vloc_yambo()
+ use gvect,     ONLY: ngl,igtongl,gshells
+ use pw_data,   ONLY: ngm_,nsp_
+ use vlocal,    ONLY: vloc,vloc_yambo
+ implicit none
+ integer :: ig
+ !
+ ! Allocate shells: gl, ngl, igtongl
+ !
+ call gshells()
+ !
+ ! QE vloc without strf is dimensioned over |G|^2 shells (ngl)
+ !
+ allocate(vloc(ngl,nsp_))
+ !
+ ! Calculate QE vloc
+ !
+ call init_vloc()
+ !
+ ! Set up vloc as a function of Gvects and not Gshells
+ !
+ do ig=1,ngm_
+   vloc_yambo(ig,:) = vloc(igtongl(ig),:)
+ enddo
+ !
+ deallocate(vloc)
+ !
+end subroutine set_vloc_yambo 

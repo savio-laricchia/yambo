@@ -140,7 +140,6 @@
         INTEGER :: ng, igl
         !
         ! [FP]
-        write (*,*) 'NGM IIIIIIIIIS : ',ngm
         ALLOCATE( igtongl(ngm) )
         ! [FP]
         !IF ( vc ) THEN
@@ -176,11 +175,6 @@
         ENDDO
 
         IF (igl /= ngl) CALL errore ('gshells', 'igl <> ngl', ngl)
-        write (*,*) 'NGL IIIIIIS: ', ngl
-        write (*,*) 'GL values : '
-        do igl=1, ngl
-          write (*,*) gl(igl)
-        enddo
 
         !ENDIF
      END SUBROUTINE gshells

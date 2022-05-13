@@ -24,29 +24,31 @@
 module vlocal
    use kinds, only : DP
    real(DP), allocatable    :: vloc(:,:)
+   ! vloc(ngl,ntyp) from QE [only needed by p2y]
+   real(DP), allocatable    :: vloc_yambo(:,:)
+   ! vloc_yambo(ngm,ntyp) stored in ns.vloc_pwscf by p2y
    complex(DP), allocatable :: vloc_full(:)
+   ! vloc_full(ngm) including structure factors
    complex(DP), allocatable :: strf(:,:)
+   ! srtf(ngm,ntyp) structure factors
 
    contains
 
      subroutine vloc_alloc()
        !
-       ! Allocate Vlocal-related quantities
+       ! Allocate Vlocal-related quantities for yambo
        !
-       ! NB: strf and vloc also allocated independently in p2y step
+       ! NB: p2y allocates vloc_yambo and strf independently
        !
-       use gvect,      ONLY: ngl,ngm,gshells
+       use gvect,      ONLY: ngm
        use ions_base,  ONLY: nsp
        use pseudo,     ONLY: l_use_p2_becp
        !
-       ! Allocate vloc if reconstructing bare Hamiltonian...
+       ! Allocate vloc_yambo if reconstructing bare Hamiltonian...
        !
        if (l_use_p2_becp) then
          !
-         if (.not.allocated(vloc)) then
-           call gshells()
-           allocate(vloc(ngl,nsp))
-         endif
+         if (.not.allocated(vloc_yambo)) allocate(vloc_yambo(ngm,nsp))
          !
          if (.not.allocated(vloc_full)) allocate(vloc_full(ngm)) 
          !
@@ -62,9 +64,9 @@ module vlocal
        !
        ! Dellocate Vlocal-related quantities
        !
-       if (allocated(vloc))      deallocate(vloc) 
-       if (allocated(vloc_full)) deallocate(vloc_full)
-       if (allocated(strf))      deallocate(strf)
+       if (allocated(vloc_yambo)) deallocate(vloc_yambo) 
+       if (allocated(vloc_full))  deallocate(vloc_full)
+       if (allocated(strf))       deallocate(strf)
        !
      end subroutine vloc_dealloc
      !

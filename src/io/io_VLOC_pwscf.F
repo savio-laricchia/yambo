@@ -29,8 +29,8 @@ integer function io_VLOC_pwscf(ID)
  use IO_int,           ONLY: io_connect,io_disconnect, &
 &                            io_elemental,io_bulk,io_header
  use qe_pseudo_m,      ONLY: nsp
- use gvect,            ONLY: ngm,ngl,gl,igtongl
- use vlocal,           ONLY: vloc
+ use gvect,            ONLY: ngm,ngl
+ use vlocal,           ONLY: vloc_yambo
  !
  implicit none
  !
@@ -38,12 +38,7 @@ integer function io_VLOC_pwscf(ID)
  !
  ! Work Space
  !
- integer :: i,is
- !
  io_VLOC_pwscf=io_connect(desc="vloc_pp_pwscf",type=0,ID=ID)
- if (io_VLOC_pwscf/=0) goto 1
- !
- io_VLOC_pwscf=io_header(ID,IMPOSE_SN=.true.)
  if (io_VLOC_pwscf/=0) goto 1
  !
  ! Dimensions
@@ -63,12 +58,12 @@ integer function io_VLOC_pwscf(ID)
  call io_bulk(ID,I0=ngm)
  call io_bulk(ID,VAR="ngl",VAR_SZ=(/1/))
  call io_bulk(ID,I0=ngl)
- call io_bulk(ID,VAR="gl",VAR_SZ=shape(gl))
- call io_bulk(ID,D1=gl)
- call io_bulk(ID,VAR="igtongl",VAR_SZ=shape(igtongl))
- call io_bulk(ID,I1=igtongl)
- call io_bulk(ID,VAR="vloc",VAR_SZ=shape(vloc))
- call io_bulk(ID,D2=vloc)
+ call io_bulk(ID,VAR="nsp",VAR_SZ=(/1/))
+ call io_bulk(ID,I0=nsp)
+ !
+ ! vloc
+ call io_bulk(ID,VAR="vloc",VAR_SZ=shape(vloc_yambo))
+ call io_bulk(ID,D2=vloc_yambo)
  !
 1 call io_disconnect(ID=ID)
  !

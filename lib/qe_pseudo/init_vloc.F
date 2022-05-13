@@ -27,9 +27,6 @@ SUBROUTINE init_vloc()
   INTEGER :: nt
   ! counter on atomic types
   !
-  ! [FP] Generate shells: gl, ngl, igtongl
-  call gshells()
-  !
   vloc(:,:) = 0._DP
   !
   do nt = 1, ntyp
