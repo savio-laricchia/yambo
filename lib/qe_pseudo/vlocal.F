@@ -34,7 +34,7 @@ module vlocal
 
    contains
 
-     subroutine vloc_alloc()
+     subroutine vloc_alloc(do_vloc)
        !
        ! Allocate Vlocal-related quantities for yambo
        !
@@ -42,11 +42,13 @@ module vlocal
        !
        use gvect,      ONLY: ngm
        use ions_base,  ONLY: nsp
-       use pseudo,     ONLY: l_use_p2_becp
+       !use pseudo,     ONLY: l_use_p2_becp
+       !
+       logical, intent(in), optional  :: do_vloc
        !
        ! Allocate vloc_yambo if reconstructing bare Hamiltonian...
        !
-       if (l_use_p2_becp) then
+       if (present(do_vloc)) then
          !
          if (.not.allocated(vloc_yambo)) allocate(vloc_yambo(ngm,nsp))
          !

@@ -153,7 +153,7 @@ subroutine PP_uspp_init()
  !
  ! [FP]
  ! vlocal quantities: strf and - if needed - vloc_yambo and vloc_full
- call vloc_alloc()
+ call vloc_alloc(l_use_p2_becp)
  ! [FP]
  !
  qe_b=transpose(b)/qe_tpiba
