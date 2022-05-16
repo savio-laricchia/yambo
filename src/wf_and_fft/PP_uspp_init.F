@@ -33,7 +33,7 @@ subroutine PP_uspp_init()
  use D_lattice,     ONLY:nsym,dl_sop,atom_mapper
  use R_lattice,     ONLY:b,g_vec,ng_vec
  use pseudo,        ONLY:pp_is_uspp,qe_pseudo_alloc,PP_uspp_free,qe_atoms_map,&
-&                        l_use_p2_becp,PP_uspp_alloc
+&                        l_use_p2_Vloc_becp,PP_uspp_alloc
  use IO_int,        ONLY:io_control
  use IO_m,          ONLY:OP_RD_CL,REP
  !
@@ -67,7 +67,7 @@ subroutine PP_uspp_init()
  if (qe_pseudo_alloc) return
  call timing("PP_uspp_init","start")
  ! [FP]
- if (l_use_p2_becp) then
+ if (l_use_p2_Vloc_becp) then
    call PP_uspp_alloc() ! projectors for nonlocal part
  endif
  ! [FP] 
@@ -90,7 +90,7 @@ subroutine PP_uspp_init()
  !
  call atom_mapper(qe_nat,real(qe_tau*qe_alat,SP),"cc",qe_atoms_map)
  !
- if ((pp_is_uspp.and.l_will_need_becp.and..not.l_use_p2_becp).or.&
+ if ((pp_is_uspp.and.l_will_need_becp.and..not.l_use_p2_Vloc_becp).or.&
     (.not.pp_is_uspp.or.nkb<=0)) then
  !if (.not.pp_is_uspp.or.nkb<=0) then
    ! [FP]
@@ -105,7 +105,7 @@ subroutine PP_uspp_init()
  ! checks
  ! [FP]
  if (.not.( l_setup.or.l_col_cut.or.l_rim.or.list_dbs.or. &
-            l_HF_and_locXC.or.l_use_p2_becp) ) then
+            l_HF_and_locXC.or.l_use_p2_Vloc_becp) ) then
     ! [FP]
     call error("[PPs] USPP not implemented for current runlevel")
  endif
@@ -153,7 +153,7 @@ subroutine PP_uspp_init()
  !
  ! [FP]
  ! vlocal quantities: strf and - if needed - vloc_yambo and vloc_full
- call vloc_alloc(l_use_p2_becp)
+ call vloc_alloc(l_use_p2_Vloc_becp)
  ! [FP]
  !
  qe_b=transpose(b)/qe_tpiba
@@ -163,7 +163,7 @@ subroutine PP_uspp_init()
 &                .false.,strf,.true.,qe_eigts1,qe_eigts2,qe_eigts3)
  !
  ! [FP]
- if (l_use_p2_becp) then
+ if (l_use_p2_Vloc_becp) then
    !
    ! Now that we have the structure factors, read and compute vloc
    call io_control(ACTION=OP_RD_CL,COM=REP,SEC=(/1/),ID=ID_vloc)
@@ -198,7 +198,6 @@ subroutine PP_compute_deeq()
  ! USPP part (Q function) NOT implemented.
  !
  use pars,                   ONLY:SP,DP
- use pseudo,                 ONLY:l_use_p2_becp
  ! data already stored by p2y
  use uspp,                   ONLY:deeq,deeq_nc,dvan,dvan_so
  use uspp_param,             ONLY:nh
@@ -210,30 +209,30 @@ subroutine PP_compute_deeq()
  !
  ! Work Space
  !
- integer :: nt, na, is, nht
+ integer :: it, ia, is, nht
  ! counters atom type, atoms, spin, aux
  !
- do na = 1, nat
+ do ia = 1, nat
    !
-   nt  = ityp(na)
-   nht = nh(nt)
+   it  = ityp(ia)
+   nht = nh(it)
    !
    if ( qe_lspinorb ) then
      !
-     deeq_nc(1:nht,1:nht,na,1:nspin) = dvan_so(1:nht,1:nht,1:nspin,nt)
+     deeq_nc(1:nht,1:nht,ia,1:nspin) = dvan_so(1:nht,1:nht,1:nspin,it)
      !
    elseif ( noncolin ) then
      !
-     deeq_nc(1:nht,1:nht,na,1) = dvan(1:nht,1:nht,nt)
-     deeq_nc(1:nht,1:nht,na,2) = ( 0.D0, 0.D0 )
-     deeq_nc(1:nht,1:nht,na,3) = ( 0.D0, 0.D0 )
-     deeq_nc(1:nht,1:nht,na,4) = dvan(1:nht,1:nht,nt)
+     deeq_nc(1:nht,1:nht,ia,1) = dvan(1:nht,1:nht,it)
+     deeq_nc(1:nht,1:nht,ia,2) = ( 0.D0, 0.D0 )
+     deeq_nc(1:nht,1:nht,ia,3) = ( 0.D0, 0.D0 )
+     deeq_nc(1:nht,1:nht,ia,4) = dvan(1:nht,1:nht,it)
      !
    else
      !
      do is = 1, nspin
        !
-       deeq(1:nht,1:nht,na,is) = dvan(1:nht,1:nht,nt)
+       deeq(1:nht,1:nht,ia,is) = dvan(1:nht,1:nht,it)
        !
      enddo
      !
@@ -285,16 +284,13 @@ subroutine PP_compute_Vloc()
  ! Compute vloc_full
  !
  do it = 1, qe_nsp
-    do ig = 1, qe_ngm ! NOTA BENE: qe_ngm = dense G-vectors (per proc.) > wf_ng 
- !      vloc_full(dfftp%nl(ng)) = vloc_full(dfftp%nl(ng)) + vloc(igtongl(ng),nt) &
- !                                 * strf(ng,nt)
+    do ig = 1, qe_ngm ! NOTA BENE: qe_ngm = dense G-vectors (per proc. in QE) > wf_ng 
        vloc_full(ig) = vloc_full(ig) + vloc_yambo(ig,it) * strf(ig,it)
     enddo
  enddo
  !
  if (gamma_only) then
     do ig = 1, qe_ngm
- !      vloc_full(dfftp%nlm(ng)) = CONJG( vloc_full(dfftp%nl(ng)) )
        vloc_full(ig) = CONJG( vloc_full(ig) )
     enddo
  endif

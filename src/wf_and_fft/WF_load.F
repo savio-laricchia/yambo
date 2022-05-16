@@ -45,7 +45,7 @@ subroutine WF_load(WF,iG_in,iGo_max_in,bands_to_load,kpts_to_load,sp_pol_to_load
 &                        SC_bands
  use global_XC,     ONLY:WF_kind,WF_xc_functional,WF_perturbation,global_XC_string
 #endif
- use pseudo,        ONLY:pp_is_uspp,becp,l_use_p2_becp
+ use pseudo,        ONLY:pp_is_uspp,becp,l_use_p2_Vloc_becp
  use qe_pseudo_m,   ONLY:vkb,tpiba
  use timing_m,      ONLY:timing
  use cuda_m,        ONLY:have_cuda
@@ -89,7 +89,7 @@ subroutine WF_load(WF,iG_in,iGo_max_in,bands_to_load,kpts_to_load,sp_pol_to_load
  ! [FP]
  ! Setting logicals for becp computation
  do_becp=pp_is_uspp
- if (l_use_p2_becp) do_becp=.true.
+ if (l_use_p2_Vloc_becp) do_becp=.true.
  ! [FP]
  !
  ! Close iG/iGo_max to the nearest shell

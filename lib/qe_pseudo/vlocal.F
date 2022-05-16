@@ -42,7 +42,6 @@ module vlocal
        !
        use gvect,      ONLY: ngm
        use ions_base,  ONLY: nsp
-       !use pseudo,     ONLY: l_use_p2_becp
        !
        logical, intent(in), optional  :: do_vloc
        !

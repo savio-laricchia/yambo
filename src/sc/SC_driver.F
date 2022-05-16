@@ -64,7 +64,7 @@ subroutine SC_driver(X,Xw,Xk,E,k,q,Dip)
  use electrons,      ONLY:Spin_magn
  use electric,       ONLY:ELECTRIC_alloc,ELECTRIC_free,W_electric
  use parser_m,       ONLY:parser
- use pseudo,         ONLY:l_use_p2_becp 
+ use pseudo,         ONLY:l_use_p2_Vloc_becp 
  !
 #include<memory.h>
  !
@@ -205,13 +205,13 @@ subroutine SC_driver(X,Xw,Xk,E,k,q,Dip)
  !=============================
  !
  ! [FP]
- call parser('BareHfromBecp', l_use_p2_becp)
- if (l_use_p2_becp) then 
+ call parser('BareHfromBecp', l_use_p2_Vloc_becp)
+ if (l_use_p2_Vloc_becp) then 
    call Direct_Bare_Hamiltonian(E,Xk,k)
  else
    call Bare_Hamiltonian(E,Xk,k)
  endif
- l_use_p2_becp=.false.
+ l_use_p2_Vloc_becp=.false.
  ! [FP]
  !
  call OCCUPATIONS_Fermi(E,k,"E",mode="OCCUPATIONS") 
