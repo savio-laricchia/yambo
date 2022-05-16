@@ -49,7 +49,7 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  !
  ! Work space
  !
- integer     :: ik,ikb,ib1,ib2,i_sp_pol,WFbands(2),na,nt,i1,i2,ia_qe,ia_per_type
+ integer     :: ik,ikb,ib1,ib2,i_sp_pol,WFbands(2),ia,it,i1,i2,ia_qe,ia_per_type
  integer     :: ib1_wf,ib2_wf,ig
  !
  Hzero   =cZERO
@@ -75,7 +75,6 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  !
  !=======================================================================================================
  !
- write (*,*) "vloc_full SIZE: ", size(vloc_full)
  do i_sp_pol=1,n_sp_pol
    !
    do ik=1,QP_nk
@@ -115,29 +114,29 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
          ! in PW/src/add_vuspsi.f90
          ! =================================================================
          ikb = 0
-         do nt=1,ntyp 
+         do it=1,ntyp 
            !
-           if ( nh(nt) == 0 ) cycle
+           if ( nh(it) == 0 ) cycle
            !
            ia_per_type=0
-           do na=1,nat
+           do ia=1,nat
              !
-             if ( ityp(na) == nt ) then
+             if ( ityp(ia) == it ) then
                ia_per_type=ia_per_type+1
                !
-               ia_qe=qe_atoms_map(ia_per_type,nt)
+               ia_qe=qe_atoms_map(ia_per_type,it)
                !
-               !write(*,*) nt,na,ia_qe,ikb_i(na)
+               !write(*,*) it,na,ia_qe,ikb_i(ia)
                !
-               do i1=1,nh(nt) ! number of projectors for atom na which is of species nt
-                 do i2=1,nh(nt) ! deeq is nondiagonal if more than one projector per atom
+               do i1=1,nh(it) ! number of projectors for atom na which is of species nt
+                 do i2=1,nh(it) ! deeq is nondiagonal if more than one projector per atom
                    
                    !write(*,*) i1,i2,deeq(i1,i2,ia_qe,i_sp_pol)
                    !
                    Hext_nl(ib1,ib2) = Hext_nl(ib1,ib2) + &
-                                      conjg(becp(ik,i_sp_pol)%k(ikb_i(na)+i1,ib1)) * &
+                                      conjg(becp(ik,i_sp_pol)%k(ikb_i(ia)+i1,ib1)) * &
                                                   deeq(i1,i2,ia_qe,i_sp_pol)/2._SP * &
-                                            becp(ik,i_sp_pol)%k(ikb_i(na)+i2,ib2)
+                                            becp(ik,i_sp_pol)%k(ikb_i(ia)+i2,ib2)
                  enddo
                  ikb = ikb +1  
                enddo

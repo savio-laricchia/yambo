@@ -150,10 +150,9 @@ subroutine PP_uspp_init()
  YAMBO_ALLOC(qe_eigts1,(-nfft(1):nfft(1),qe_nat))
  YAMBO_ALLOC(qe_eigts2,(-nfft(2):nfft(2),qe_nat))
  YAMBO_ALLOC(qe_eigts3,(-nfft(3):nfft(3),qe_nat))
- ! [FP]
- !AMBO_ALLOC(strf,(qe_ngm,qe_nsp))
  !
- ! vlocal quantities: strf and - if needed - vloc and vloc_full
+ ! [FP]
+ ! vlocal quantities: strf and - if needed - vloc_yambo and vloc_full
  call vloc_alloc()
  ! [FP]
  !
@@ -250,7 +249,8 @@ subroutine PP_compute_Vloc()
  !
  ! vloc_full(G) = sum_sp vloc(G,sp) * struct_factor(G,sp)
  !
- ! vloc (qe: vloc_of_g) is read from database [use p2y -p when generating SAVE]
+ ! vloc (qe: vloc_of_g / vloc_yambo) is read from database 
+ ! [use p2y -p when generating SAVE]
  !
  ! Adapted from subroutine setlocal() in PW/src/setlocal.f90 in QE
  !
@@ -263,22 +263,20 @@ subroutine PP_compute_Vloc()
  use cell_base,      ONLY: omega
  use gvect,          ONLY: igtongl, gg, qe_ngm => ngm
  use qe_pseudo_m,    ONLY: qe_nsp => nsp
- use vlocal,         ONLY: qe_vloc => vloc, vloc_full,strf
+ use vlocal,         ONLY: vloc_yambo, vloc_full, strf
  !use fft_base,       ONLY: dfftp
  use FFT_m,          ONLY:fft_size
  use control_flags,  ONLY: gamma_only
  !use mp_bands,       ONLY: intra_bgrp_comm
  !use mp,             ONLY: mp_sum
  !
- ! - qe_vloc contains the G-components per atomic species
+ ! - vloc_yambo contains the G-components per atomic species
  ! - vloc_full is the actual vloc(G) including the structure factors
  !   (called 'aux' in original QE routine since they just used it for invfft)
  !
- !complex(DP) :: strf(qe_ngm,qe_nsp)
- !
  ! Work space
  !
- INTEGER :: nt, ng
+ INTEGER :: it, ig
  ! counter on atom types
  ! counter on g vectors
  !
@@ -286,18 +284,18 @@ subroutine PP_compute_Vloc()
  !
  ! Compute vloc_full
  !
- do nt = 1, qe_nsp
-    do ng = 1, qe_ngm ! NOTA BENE: qe_ngm = dense G-vectors (per proc.) > wf_ng 
+ do it = 1, qe_nsp
+    do ig = 1, qe_ngm ! NOTA BENE: qe_ngm = dense G-vectors (per proc.) > wf_ng 
  !      vloc_full(dfftp%nl(ng)) = vloc_full(dfftp%nl(ng)) + vloc(igtongl(ng),nt) &
  !                                 * strf(ng,nt)
-       vloc_full(ng) = vloc_full(ng) + qe_vloc(igtongl(ng),nt) * strf(ng,nt)
+       vloc_full(ig) = vloc_full(ig) + vloc_yambo(ig,it) * strf(ig,it)
     enddo
  enddo
  !
  if (gamma_only) then
-    do ng = 1, qe_ngm
+    do ig = 1, qe_ngm
  !      vloc_full(dfftp%nlm(ng)) = CONJG( vloc_full(dfftp%nl(ng)) )
-       vloc_full(ng) = CONJG( vloc_full(ng) )
+       vloc_full(ig) = CONJG( vloc_full(ig) )
     enddo
  endif
  ! ... vloc_full = potential in G-space.
