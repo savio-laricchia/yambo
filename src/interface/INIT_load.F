@@ -683,7 +683,7 @@ subroutine INIT_load(defs,en,q,k,X,Xw,Dip)
  call it('f',defs,'SCnlMix','[SC] Use SC non-local mixing',verb_level=V_sc)
  call it('f',defs,'FrozeDensity','[NL] Do not update density (for testing purposes)',verb_level=V_sc)
  ! [FP] TEST: to be removed
- call it('f',defs,'BareHfromBecp','Compute bare H_0 directly in k-space with p**2 and becp%k (for testing purposes)')
+ call it('f',defs,'BareHfromScratch','Compute bare H_0 from scratch in k-space with p**2, Vloc and becp%k')
  ! [FP]
  !
  ! SC [NEQ]

@@ -24,24 +24,26 @@
 subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  !
  use pars,           ONLY:SP,cZERO
- use electrons,      ONLY:levels,n_sp_pol
+ use electrons,      ONLY:levels,n_sp_pol,l_spin_orbit
  use QP_m,           ONLY:QP_nk
  use interfaces,     ONLY:WF_load
  use hamiltonian,    ONLY:Hzero,H_ref_bands,WF_G_max,WF_Go_indx,Hext_nl,Hext_loc!,E_reference
  use parallel_m,     ONLY:PAR_IND_WF_k
  use parallel_int,   ONLY:PP_redux_wait
- use wave_func,      ONLY:WF,wf_ng
+ use wave_func,      ONLY:WF
  use R_lattice,      ONLY:bz_samp,nkibz
  use timing_m,       ONLY:timing
  use pseudo,         ONLY:becp,pp_is_uspp,qe_atoms_map
- use uspp,           ONLY:nkb,ikb_i=>indv_ijkb0,deeq!,deeq_nc
+ use uspp,           ONLY:nkb,ikb_i=>indv_ijkb0,deeq,deeq_nc
  use uspp_param,     ONLY:nh
  use ions_base,      ONLY:nat,ityp,ntyp=>nsp
- use vlocal,         ONLY:vloc_full,vloc_dealloc
+ use vlocal,         ONLY:vloc_dealloc
  use wrapper,        ONLY:Vstar_dot_VV
+ use fft_m,          ONLY:fft_size
 #if defined _RT
  use drivers,        ONLY:l_real_time
 #endif
+#include<dev_defs.h>
 #include<memory.h>
  !
  type(levels)             :: E ! This is so far not needed by the subroutine 
@@ -50,11 +52,18 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  ! Work space
  !
  integer     :: ik,ikb,ib1,ib2,i_sp_pol,WFbands(2),ia,it,i1,i2,ia_qe,ia_per_type
- integer     :: ib1_wf,ib2_wf,ig
+ integer     :: ib1_wf,ib2_wf
+ complex(SP) :: vloc_full_r(fft_size)
+ !
+ ! Debug
+ !
+ open(1, file='real_Hbare_test.dat')
+ open(2, file='imag_Hbare_test.dat')
  !
  Hzero   =cZERO
  Hext_nl =cZERO
  Hext_loc=cZERO
+ vloc_full_r=cZERO
  !
  call timing('Direct_Bare_Hamiltonian',OPR='start')
  !
@@ -66,6 +75,14 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  !=====================================================================
  WFbands=(/H_ref_bands(1),max(H_ref_bands(2),maxval(E%nbm))/)
  call WF_load(WF,WF_G_max,WF_Go_indx,WFbands,(/1,nkibz/),title='-SC')
+ !
+ ! FFT of vloc into real space
+ !
+ ! (NB: grid dimensions are determined by WF bounds)
+ !=====================================================================
+ call FFT_vloc_G_to_R()
+ !
+ call vloc_dealloc() ! Dealloc here since we couldn't do it in PP_uspp_init 
  !
  ! Calculation of Hzero
  !
@@ -94,16 +111,10 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
          ib1_wf = WF%index(ib1,ik,i_sp_pol)
          ib2_wf = WF%index(ib2,ik,i_sp_pol)
          !
-         ! [FP] This loop should be done in real space
-         !!!do ig=1,wf_ng
-         !!!  Hext_loc(ib1,ib2) = Hext_loc(ib1,ib2) + &
-         !!!               conjg(WF%c(ig,i_sp_pol,ib1_wf))*vloc_full(ig)*WF%c(ig,i_sp_pol,ib2_wf)
-         !!!enddo
+         Hext_loc(ib1,ib2) = Hext_loc(ib1,ib2) + &
+                             Vstar_dot_VV(fft_size,WF%c(:,i_sp_pol,ib1_wf),vloc_full_r,WF%c(:,i_sp_pol,ib2_wf))
          !
          ! Calculate the nonlocal part of Hext ...
-         !
-         ! (Spin-orbit / Non-collinear cases thus far not implemented.
-         !  Use deeq_nc insted of deeq for those)
          !
          ! NB: Unlike for (i) the dipoles or (ii) the Pseudo_Hamiltonian cases,
          !     here we have to *explicitly* use the nondiagonal deeq matrix to
@@ -133,10 +144,22 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
                    
                    !write(*,*) i1,i2,deeq(i1,i2,ia_qe,i_sp_pol)
                    !
-                   Hext_nl(ib1,ib2) = Hext_nl(ib1,ib2) + &
-                                      conjg(becp(ik,i_sp_pol)%k(ikb_i(ia)+i1,ib1)) * &
-                                                  deeq(i1,i2,ia_qe,i_sp_pol)/2._SP * &
-                                            becp(ik,i_sp_pol)%k(ikb_i(ia)+i2,ib2)
+                   if (l_spin_orbit) then
+                     !
+                     Hext_nl(ib1,ib2) = Hext_nl(ib1,ib2) + &
+                                       conjg(becp(ik,i_sp_pol)%k(ikb_i(ia)+i1,ib1)) * &
+                                                 deeq_nc(i1,i2,ia_qe,i_sp_pol)/2._SP * &
+                                              becp(ik,i_sp_pol)%k(ikb_i(ia)+i2,ib2)
+                     !
+                   else
+                     !
+                     Hext_nl(ib1,ib2) = Hext_nl(ib1,ib2) + &
+                                        conjg(becp(ik,i_sp_pol)%k(ikb_i(ia)+i1,ib1))* &
+                                                    deeq(i1,i2,ia_qe,i_sp_pol)/2._SP* &
+                                              becp(ik,i_sp_pol)%k(ikb_i(ia)+i2,ib2)
+                     !
+                   endif
+                   !  
                  enddo
                  ikb = ikb +1  
                enddo
@@ -157,9 +180,14 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
        enddo
      enddo
      !
+     write(1,*) "#Re H_bare (ik,i_sp_pol) ",ik,i_sp_pol
+     write(2,*) "#Im H_bare (ik,i_sp_pol) ",ik,i_sp_pol
      do ib1=H_ref_bands(1),H_ref_bands(2)
-       write(*,*) Hext_nl(ib1,:)
+       write(*,*) Hext_nl(ib1,:)+Hext_loc(ib1,:)
+       !write(*,*) Hext_nl(ib1,:)
        !write(*,*) Hext_loc(ib1,:)
+       write(1,*) real(Hext_nl(ib1,:)+Hext_loc(ib1,:))
+       write(2,*) aimag(Hext_nl(ib1,:)+Hext_loc(ib1,:))
      enddo
      !
      ! Fill Hzero
@@ -178,11 +206,46 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  enddo
  !
  call PP_redux_wait(Hzero)
- call vloc_dealloc() ! Dealloc here since we couldn't do it in PP_uspp_init
  pp_is_uspp=.false. 
  !
+ close(1)
+ close(2)
  write(*,*) "End of Direct hamiltonian "
  !
  call timing('Direct_Bare_Hamiltonian',OPR='stop')
  !
+ contains
+   !
+   subroutine FFT_vloc_G_to_R()
+    !
+    use pars,       ONLY:DP  
+    use vlocal,     ONLY:vloc_full
+    use fft_m,      ONLY:fft_dim,fftw_plan,fft_g_table
+    use gvect,      ONLY:ngm
+    !
+    ! Work space
+    !
+    integer        :: ig
+    complex(DP)    :: vloc_aux(fft_size)
+    !
+    !$omp parallel do default(shared), private(ig)
+    do ig=1,ngm
+      vloc_aux(fft_g_table(ig,1))=vloc_full(ig)
+    enddo
+    !$omp end parallel do
+    !
+#if defined _FFTW
+    call dfftw_destroy_plan(fftw_plan)
+    fftw_plan = 0
+    call fft_3d(vloc_aux,fft_dim,1,fftw_plan)
+#else
+    call fft_3d(vloc_aux,fft_dim,1)
+#endif
+    !
+    ! Convert to single precision but keep complex type
+    ! even though vloc(r) is real, as required by Vstar_dot_VV
+    vloc_full_r = cmplx(vloc_aux)
+    !
+    end subroutine FFT_vloc_G_to_R
+    !
 end subroutine Direct_Bare_Hamiltonian

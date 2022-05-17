@@ -205,7 +205,7 @@ subroutine SC_driver(X,Xw,Xk,E,k,q,Dip)
  !=============================
  !
  ! [FP]
- call parser('BareHfromBecp', l_use_p2_Vloc_becp)
+ call parser('BareHfromScratch', l_use_p2_Vloc_becp)
  if (l_use_p2_Vloc_becp) then 
    call Direct_Bare_Hamiltonian(E,Xk,k)
  else

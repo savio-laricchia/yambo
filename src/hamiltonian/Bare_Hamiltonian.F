@@ -152,6 +152,13 @@ subroutine Bare_Hamiltonian(E,Xk,k)
      !
      call V_qp_basis_to_H(ik,i_sp_pol,-QP_Vxc,Hzero(:,:,ik,i_sp_pol))
      !
+     ! [DEBUG>]
+     !write (*,*) "H_bare (ik,i_sp_pol) ",ik,i_sp_pol
+     !
+     !do ib=H_ref_bands(1),H_ref_bands(2)
+     !  write(*,*) H_zero(ib,:,ik,i_sp_pol)
+     !enddo
+     ! [<DEBUG]
    enddo
    !
  enddo
