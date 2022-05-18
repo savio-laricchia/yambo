@@ -21,10 +21,11 @@
 ! Software Foundation, Inc., 59 Temple Place - Suite 330,Boston,
 ! MA 02111-1307, USA or visit http://www.gnu.org/copyleft/gpl.txt.
 !
-subroutine Direct_Bare_Hamiltonian(E,Xk,k)
+subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
  !
  use pars,           ONLY:SP,cZERO
  use electrons,      ONLY:levels,n_sp_pol,l_spin_orbit
+ use dipoles,        ONLY:DIPOLE_t,compute_P2_dipoles,P_square
  use QP_m,           ONLY:QP_nk
  use interfaces,     ONLY:WF_load
  use hamiltonian,    ONLY:Hzero,H_ref_bands,WF_G_max,WF_Go_indx,Hext_nl,Hext_loc!,E_reference
@@ -40,6 +41,8 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  use vlocal,         ONLY:vloc_dealloc
  use wrapper,        ONLY:Vstar_dot_VV
  use fft_m,          ONLY:fft_size
+ use IO_int,         ONLY:io_control
+ use IO_m,           ONLY:NONE,OP_RD_CL,REP,DUMP
 #if defined _RT
  use drivers,        ONLY:l_real_time
 #endif
@@ -48,17 +51,20 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  !
  type(levels)             :: E ! This is so far not needed by the subroutine 
  type(bz_samp)            :: Xk,k
+ type(DIPOLE_t)           :: Dip
  !
  ! Work space
  !
  integer     :: ik,ikb,ib1,ib2,i_sp_pol,WFbands(2),ia,it,i1,i2,ia_qe,ia_per_type
- integer     :: ib1_wf,ib2_wf
+ integer     :: ib1_wf,ib2_wf,io_DIP_err,ID_DIP
  complex(SP) :: vloc_full_r(fft_size)
+ !
+ integer, external :: io_DIPOLES
  !
  ! Debug
  !
- open(1, file='real_Hbare_test.dat')
- open(2, file='imag_Hbare_test.dat')
+ open(1, file='TEST_Hbare_real.dat')
+ open(2, file='TEST_Hbare_imag.dat')
  !
  Hzero   =cZERO
  Hext_nl =cZERO
@@ -68,6 +74,24 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  call timing('Direct_Bare_Hamiltonian',OPR='start')
  !
  if (pp_is_uspp) call error("[PPs] Currently, USPP not implemented for ED")
+ !
+ ! Read dipoles
+ !
+ ! NB: this is a workaround. In the final version this should be done externally
+ !=====================================================================
+ if (.not.compute_P2_dipoles) call error("[DIP] P_square not activated")
+ call DIPOLE_dimensions(E,Dip,H_ref_bands,(/0._SP,0._SP,0._SP/))
+ ! I use this double call to io_DIPOLES since DIPOLE_IO does not work
+ !
+ call io_control(ACTION=OP_RD_CL,COM=REP,MODE=DUMP,SEC=(/0/),ID=ID_DIP)
+ io_DIP_err = io_DIPOLES(Dip,ID_DIP)
+ call io_control(ACTION=OP_RD_CL,COM=NONE,MODE=DUMP,SEC=(/2/),ID=ID_DIP)
+ io_DIP_err = io_DIPOLES(Dip,ID_DIP)
+ ! The four lines above could be replaced with this one but it gives
+ ! an error because PAR_K_scheme%ibz_index ends up not being allocated 
+ !
+ !call DIPOLE_IO(k,E,Dip,'read',io_DIP_err,"SC")
+ if (.not.allocated(P_square)) call error("[DIP] P_square not found")
  !
  ! WF Loading
  !
@@ -86,9 +110,9 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
  !
  ! Calculation of Hzero
  !
- ! Hzero = T + Hext = -P**2./2. + V_ext^loc + V_ext^nl
+ ! Hzero = T + Hext = -P**2/2. + V_ext^loc + V_ext^nl
  !
- ! Hzero_n,m = P**2/2. + int_r [WF%c(r,n)]* Vloc(r) * WF%c(r,m)  + sum_i [becp%k(i,n)]* D_ij * becp%k(j,m)
+ ! Hzero_n,m = -P_square(n,m)/2. + int_r [WF%c(r,n)]* Vloc(r) * WF%c(r,m)  + sum_i [becp%k(i,n)]* D_ij * becp%k(j,m)
  !
  !=======================================================================================================
  !
@@ -96,7 +120,7 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
    !
    do ik=1,QP_nk
      !
-     write (*,*) "H_pseudo (ik,i_sp_pol) ",ik,i_sp_pol
+     write (*,*) "H_zero (ik,i_sp_pol) ",ik,i_sp_pol
      !
      Hext_loc=cZERO
      Hext_nl=cZERO
@@ -180,20 +204,24 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k)
        enddo
      enddo
      !
-     write(1,*) "#Re H_bare (ik,i_sp_pol) ",ik,i_sp_pol
-     write(2,*) "#Im H_bare (ik,i_sp_pol) ",ik,i_sp_pol
-     do ib1=H_ref_bands(1),H_ref_bands(2)
-       write(*,*) Hext_nl(ib1,:)+Hext_loc(ib1,:)
+     !do ib1=H_ref_bands(1),H_ref_bands(2)
        !write(*,*) Hext_nl(ib1,:)
        !write(*,*) Hext_loc(ib1,:)
-       write(1,*) real(Hext_nl(ib1,:)+Hext_loc(ib1,:))
-       write(2,*) aimag(Hext_nl(ib1,:)+Hext_loc(ib1,:))
-     enddo
+     !enddo
      !
      ! Fill Hzero
      ! ==============
      !
-     Hzero(:,:,ik,i_sp_pol) = Hzero(:,:,ik,i_sp_pol) + Hext_loc(:,:) + Hext_nl(:,:)
+     Hzero(:,:,ik,i_sp_pol) = Hzero(:,:,ik,i_sp_pol) & 
+                              - P_square(:,:,ik,i_sp_pol)/2._SP + Hext_loc(:,:) + Hext_nl(:,:)
+     !
+     write(1,*) "#Re H_bare (ik,i_sp_pol) ",ik,i_sp_pol
+     write(2,*) "#Im H_bare (ik,i_sp_pol) ",ik,i_sp_pol
+     do ib1=H_ref_bands(1),H_ref_bands(2)
+       write(*,*) Hzero(ib1,:,ik,i_sp_pol)
+       write(1,*) real(Hzero(ib1,:,ik,i_sp_pol))
+       write(2,*) aimag(Hzero(ib1,:,ik,i_sp_pol))
+     enddo
      !
 #if defined _RT
      if(l_real_time) then

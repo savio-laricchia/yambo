@@ -193,11 +193,11 @@ subroutine Pseudo_Hamiltonian(Xk,Xen,l_equilibrium)
      enddo   ! i1
      !
      ! [DEBUG>]
-     write (*,*) "H_pseudo (ik,i_sp_pol) ",ik,i_sp_pol
+     !write (*,*) "H_pseudo (ik,i_sp_pol) ",ik,i_sp_pol
      !
-     do ib=H_ref_bands(1),H_ref_bands(2)
-       write(*,*) H_pseudo(ib,:,ik,i_sp_pol)
-     enddo
+     !do ib=H_ref_bands(1),H_ref_bands(2)
+     !  write(*,*) H_pseudo(ib,:,ik,i_sp_pol)
+     !enddo
      ! [<DEBUG]
      !
 #if defined _RT

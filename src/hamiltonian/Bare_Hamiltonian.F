@@ -59,6 +59,10 @@ subroutine Bare_Hamiltonian(E,Xk,k)
  !
  call timing('Bare_Hamiltonian',OPR='start')
  !
+ ! [DEBUG>]
+ open(1, file='REF_Hbare_real.dat')
+ open(2, file='REF_Hbare_imag.dat')
+ ! [<DEBUG]
 #if defined _SC
  !
  if (l_sc_magnetic) then
@@ -153,11 +157,14 @@ subroutine Bare_Hamiltonian(E,Xk,k)
      call V_qp_basis_to_H(ik,i_sp_pol,-QP_Vxc,Hzero(:,:,ik,i_sp_pol))
      !
      ! [DEBUG>]
-     !write (*,*) "H_bare (ik,i_sp_pol) ",ik,i_sp_pol
-     !
-     !do ib=H_ref_bands(1),H_ref_bands(2)
-     !  write(*,*) H_zero(ib,:,ik,i_sp_pol)
-     !enddo
+     write (*,*) "H_bare (ik,i_sp_pol) ",ik,i_sp_pol
+     write(1,*) "#Re H_bare (ik,i_sp_pol) ",ik,i_sp_pol
+     write(2,*) "#Im H_bare (ik,i_sp_pol) ",ik,i_sp_pol
+     do ib=H_ref_bands(1),H_ref_bands(2)
+       write(*,*) Hzero(ib,:,ik,i_sp_pol)
+       write(1,*) real (Hzero(ib,:,ik,i_sp_pol))
+       write(2,*) aimag(Hzero(ib,:,ik,i_sp_pol))
+     enddo
      ! [<DEBUG]
    enddo
    !
@@ -178,6 +185,10 @@ subroutine Bare_Hamiltonian(E,Xk,k)
  YAMBO_FREE(QP_Vxc)
  !
  call PP_redux_wait(Hzero)
+ !
+ close(2)
+ close(1)
+ write (*,*) "End of Bare Hamiltonian "
  !
  call timing('Bare_Hamiltonian',OPR='stop')
  !
