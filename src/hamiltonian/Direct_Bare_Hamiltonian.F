@@ -43,6 +43,8 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
  use fft_m,          ONLY:fft_size
  use IO_int,         ONLY:io_control
  use IO_m,           ONLY:NONE,OP_RD_CL,REP,DUMP
+ use gvect,          ONLY:ngm
+ use stderr,         ONLY:intc
 #if defined _RT
  use drivers,        ONLY:l_real_time
 #endif
@@ -57,7 +59,7 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
  !
  integer     :: ik,ikb,ib1,ib2,i_sp_pol,WFbands(2),ia,it,i1,i2,ia_qe,ia_per_type
  integer     :: ib1_wf,ib2_wf,io_DIP_err,ID_DIP
- complex(SP) :: vloc_full_r(fft_size)
+ complex(SP), allocatable :: vloc_full_r(:)
  !
  integer, external :: io_DIPOLES
  !
@@ -69,6 +71,7 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
  Hzero   =cZERO
  Hext_nl =cZERO
  Hext_loc=cZERO
+ allocate(vloc_full_r(fft_size))
  vloc_full_r=cZERO
  !
  call timing('Direct_Bare_Hamiltonian',OPR='start')
@@ -93,26 +96,26 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
  !call DIPOLE_IO(k,E,Dip,'read',io_DIP_err,"SC")
  if (.not.allocated(P_square)) call error("[DIP] P_square not found")
  !
- ! WF Loading
+ ! Load WF, compute Vloc and becp and setup FFT
  !
- ! (NB: this turns pp_is_uspp to .true., later on it is restored to .false.)
+ ! (NB:  this turns pp_is_uspp to .true., later on it is restored to .false.)
+ ! (NB2: this calls vloc_alloc(), it is deallocated below) 
  !=====================================================================
  WFbands=(/H_ref_bands(1),max(H_ref_bands(2),maxval(E%nbm))/)
  call WF_load(WF,WF_G_max,WF_Go_indx,WFbands,(/1,nkibz/),title='-SC')
+ if (WF_G_max/=ngm) call error('[FFT] FFT needs ng='//trim(intc(ngm))//' but has ng='//trim(intc(WF_G_max))//'')
  !
  ! FFT of vloc into real space
  !
- ! (NB: grid dimensions are determined by WF bounds)
+ ! (NB: grid dimensions are determined by the FFT_setup previously run by WF_load)
  !=====================================================================
  call FFT_vloc_G_to_R()
- !
- call vloc_dealloc() ! Dealloc here since we couldn't do it in PP_uspp_init 
  !
  ! Calculation of Hzero
  !
  ! Hzero = T + Hext = -P**2/2. + V_ext^loc + V_ext^nl
  !
- ! Hzero_n,m = -P_square(n,m)/2. + int_r [WF%c(r,n)]* Vloc(r) * WF%c(r,m)  + sum_i [becp%k(i,n)]* D_ij * becp%k(j,m)
+ ! Hzero_n,m = -P_square(n,m)/2. + int_r [WF%c(r,n)]* Vloc(r) * WF%c(r,m)  + sum_ij [becp%k(i,n)]* D_ij * becp%k(j,m)
  !
  !=======================================================================================================
  !
@@ -163,7 +166,7 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
                !
                !write(*,*) it,na,ia_qe,ikb_i(ia)
                !
-               do i1=1,nh(it) ! number of projectors for atom na which is of species nt
+               do i1=1,nh(it) ! number of projectors for atom ia which is of species it
                  do i2=1,nh(it) ! deeq is nondiagonal if more than one projector per atom
                    
                    !write(*,*) i1,i2,deeq(i1,i2,ia_qe,i_sp_pol)
@@ -235,6 +238,8 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
  !
  call PP_redux_wait(Hzero)
  pp_is_uspp=.false. 
+ call vloc_dealloc() ! Dealloc here since we couldn't do it in PP_uspp_init 
+ deallocate(vloc_full_r)
  !
  close(1)
  close(2)
@@ -253,8 +258,10 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
     !
     ! Work space
     !
-    integer        :: ig
-    complex(DP)    :: vloc_aux(fft_size)
+    integer                   :: ig
+    complex(DP), allocatable  :: vloc_aux(:)
+    !
+    allocate(vloc_aux(fft_size))
     !
     !$omp parallel do default(shared), private(ig)
     do ig=1,ngm
@@ -270,9 +277,19 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
     call fft_3d(vloc_aux,fft_dim,1)
 #endif
     !
-    ! Convert to single precision but keep complex type
+    ! [FP] BUG: vloc(r) actually has a non-negligible imaginary part!!!!
+    !
+    !write (*,*) "Vloc(r):"
+    !do ig=1,fft_size
+    !  write (*,*) vloc_aux(ig)
+    !enddo
+    !write (*,*) "End Vloc(r)"
+    !
+    ! Convert to single precision and real but keep complex type
     ! even though vloc(r) is real, as required by Vstar_dot_VV
-    vloc_full_r = cmplx(vloc_aux)
+    vloc_full_r = real(cmplx(vloc_aux))
+    !
+    deallocate(vloc_aux)
     !
     end subroutine FFT_vloc_G_to_R
     !
