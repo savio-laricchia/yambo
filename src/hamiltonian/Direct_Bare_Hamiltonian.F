@@ -71,8 +71,6 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
  Hzero   =cZERO
  Hext_nl =cZERO
  Hext_loc=cZERO
- allocate(vloc_full_r(fft_size))
- vloc_full_r=cZERO
  !
  call timing('Direct_Bare_Hamiltonian',OPR='start')
  !
@@ -109,6 +107,9 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
  !
  ! (NB: grid dimensions are determined by the FFT_setup previously run by WF_load)
  !=====================================================================
+ allocate(vloc_full_r(fft_size))
+ vloc_full_r=cZERO
+ !
  call FFT_vloc_G_to_R()
  !
  ! Calculation of Hzero
