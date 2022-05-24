@@ -82,16 +82,8 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
  !=====================================================================
  if (.not.compute_P2_dipoles) call error("[DIP] P_square not activated")
  call DIPOLE_dimensions(E,Dip,H_ref_bands,(/0._SP,0._SP,0._SP/))
- ! I use this double call to io_DIPOLES since DIPOLE_IO does not work
  !
- call io_control(ACTION=OP_RD_CL,COM=REP,MODE=DUMP,SEC=(/0/),ID=ID_DIP)
- io_DIP_err = io_DIPOLES(Dip,ID_DIP)
- call io_control(ACTION=OP_RD_CL,COM=NONE,MODE=DUMP,SEC=(/2/),ID=ID_DIP)
- io_DIP_err = io_DIPOLES(Dip,ID_DIP)
- ! The four lines above could be replaced with this one but it gives
- ! an error because PAR_K_scheme%ibz_index ends up not being allocated 
- !
- !call DIPOLE_IO(k,E,Dip,'read',io_DIP_err,"SC")
+ call DIPOLE_IO(k,E,Dip,'read',io_DIP_err,"SC")
  if (.not.allocated(P_square)) call error("[DIP] P_square not found")
  !
  ! Load WF, compute Vloc and becp and setup FFT
