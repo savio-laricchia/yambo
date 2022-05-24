@@ -39,7 +39,7 @@ subroutine PARALLEL_global_Self_Energy(E,Xk,q)
 &                        PAR_COM_Q_A2A
  ! IND
  use parallel_m,    ONLY:PAR_IND_QP,PAR_IND_Q_ibz,PAR_IND_G_b,PAR_IND_Q_bz,PAR_IND_Xk_ibz,PAR_IND_G_k,&
-&                        PAR_IND_DIPk_bz,PAR_IND_DIPk_ibz,PAR_IND_OVLPk_ibz
+&                        PAR_IND_DIPk_bz,PAR_IND_DIPk_ibz,PAR_IND_OVLPk_ibz,PAR_IND_Xk_bz
  ! INDEX
  use parallel_m,    ONLY:PAR_QP_index,PAR_Q_ibz_index,PAR_Q_bz_index,PAR_G_bands_index,PAR_IND_Bp_mat,&
 &                        PAR_Xk_ibz_index,PAR_Xk_bz_index
@@ -49,7 +49,7 @@ subroutine PARALLEL_global_Self_Energy(E,Xk,q)
  ! ID's
  use parallel_m,    ONLY:PAR_IND_Xk_ibz_ID,PAR_IND_Xk_bz_ID,PAR_IND_G_b_ID,PAR_IND_QP_ID,PAR_IND_Q_ibz_ID,PAR_IND_Q_bz_ID
 #if defined _SC
- use parallel_m,    ONLY:PAR_COM_Xk_ibz_INDEX,PAR_IND_Xk_bz
+ use parallel_m,    ONLY:PAR_COM_Xk_ibz_INDEX
 #endif
 #if defined _SC || defined _RT || defined _QED
  use drivers,       ONLY:l_elphoton_corr,l_life,l_real_time,l_sc_run

@@ -214,6 +214,9 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
      write(1,*) "#Re H_bare (ik,i_sp_pol) ",ik,i_sp_pol
      write(2,*) "#Im H_bare (ik,i_sp_pol) ",ik,i_sp_pol
      do ib1=H_ref_bands(1),H_ref_bands(2)
+       !write(*,*) "P2= ",P_square(ib1,:,ik,i_sp_pol)/2._SP
+       !write(*,*) "Hl= ",Hext_loc(ib1,:)
+       !write(*,*) "Hn= ",Hext_nl(ib1,:)
        write(*,*) Hzero(ib1,:,ik,i_sp_pol)
        write(1,*) real(Hzero(ib1,:,ik,i_sp_pol))
        write(2,*) aimag(Hzero(ib1,:,ik,i_sp_pol))

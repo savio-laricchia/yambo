@@ -160,7 +160,7 @@ subroutine PP_uspp_init()
  !
  call struc_fact(qe_nat,qe_tau,qe_nsp,qe_ityp,qe_ngm,qe_g,qe_b,&
 &                nfft(1),nfft(2),nfft(3), &
-&                .false.,strf,.true.,qe_eigts1,qe_eigts2,qe_eigts3)
+&                .true.,strf,.true.,qe_eigts1,qe_eigts2,qe_eigts3)
  !
  ! [FP]
  if (l_use_p2_Vloc_becp) then
