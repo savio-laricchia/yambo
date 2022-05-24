@@ -58,7 +58,7 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
  ! Work space
  !
  integer     :: ik,ikb,ib1,ib2,i_sp_pol,WFbands(2),ia,it,i1,i2,ia_qe,ia_per_type
- integer     :: ib1_wf,ib2_wf,io_DIP_err,ID_DIP
+ integer     :: i_wf1,i_wf2,io_DIP_err,ID_DIP
  complex(SP), allocatable :: vloc_full_r(:)
  !
  integer, external :: io_DIPOLES
@@ -116,6 +116,7 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
    !
    do ik=1,QP_nk
      !
+     !write (*,*) "H_pseudo (ik,i_sp_pol) ",ik,i_sp_pol
      write (*,*) "H_zero (ik,i_sp_pol) ",ik,i_sp_pol
      !
      Hext_loc=cZERO
@@ -128,11 +129,13 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
          !
          ! This is a sandwich in R-space of vloc(r) with the wave functions
          ! ==================================================================
-         ib1_wf = WF%index(ib1,ik,i_sp_pol)
-         ib2_wf = WF%index(ib2,ik,i_sp_pol)
+         i_wf1 = WF%index(ib1,ik,i_sp_pol)
+         i_wf2 = WF%index(ib2,ik,i_sp_pol)
          !
+         !
+         ! Do I need to divide by 2 to convert from Ry to Ha ??
          Hext_loc(ib1,ib2) = Hext_loc(ib1,ib2) + &
-                             Vstar_dot_VV(fft_size,WF%c(:,i_sp_pol,ib1_wf),vloc_full_r,WF%c(:,i_sp_pol,ib2_wf))
+                             Vstar_dot_VV(fft_size,WF%c(:,i_sp_pol,i_wf1),vloc_full_r,WF%c(:,i_sp_pol,i_wf2))/2._SP
          !
          ! Calculate the nonlocal part of Hext ...
          !
@@ -209,14 +212,14 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
      ! ==============
      !
      Hzero(:,:,ik,i_sp_pol) = Hzero(:,:,ik,i_sp_pol) & 
-                              - P_square(:,:,ik,i_sp_pol)/2._SP + Hext_loc(:,:) + Hext_nl(:,:)
+                              -P_square(:,:,ik,i_sp_pol)/2._SP + Hext_loc(:,:) + Hext_nl(:,:)
      !
      write(1,*) "#Re H_bare (ik,i_sp_pol) ",ik,i_sp_pol
      write(2,*) "#Im H_bare (ik,i_sp_pol) ",ik,i_sp_pol
      do ib1=H_ref_bands(1),H_ref_bands(2)
        !write(*,*) "P2= ",P_square(ib1,:,ik,i_sp_pol)/2._SP
        !write(*,*) "Hl= ",Hext_loc(ib1,:)
-       !write(*,*) "Hn= ",Hext_nl(ib1,:)
+       !write(*,*)  Hext_nl(ib1,:)
        write(*,*) Hzero(ib1,:,ik,i_sp_pol)
        write(1,*) real(Hzero(ib1,:,ik,i_sp_pol))
        write(2,*) aimag(Hzero(ib1,:,ik,i_sp_pol))
@@ -254,7 +257,7 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
     !
     ! Work space
     !
-    integer                   :: ig
+    integer                   :: ig,ir
     complex(DP), allocatable  :: vloc_aux(:)
     !
     allocate(vloc_aux(fft_size))
@@ -283,9 +286,13 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
     !
     ! Convert to single precision and real but keep complex type
     ! even though vloc(r) is real, as required by Vstar_dot_VV
-    vloc_full_r = real(cmplx(vloc_aux))
+    vloc_full_r = cmplx(vloc_aux,kind=SP)
     !
     deallocate(vloc_aux)
+    !
+    !do ir=1,fft_size
+    !  write(*,*) ir,vloc_full_r(ir)
+    !enddo
     !
     end subroutine FFT_vloc_G_to_R
     !
