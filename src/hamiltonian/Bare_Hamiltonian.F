@@ -37,15 +37,13 @@ subroutine Bare_Hamiltonian(E,Xk,k)
  use H_interfaces,   ONLY:V_real_space_to_H
  use timing_m,       ONLY:timing
 #if defined _SC
- use drivers,        ONLY:l_sc_run
+ use drivers,        ONLY:l_sc_run,l_sc_magnetic
 #endif
 #if defined _RT
  use drivers,        ONLY:l_real_time
  use real_time,      ONLY:REF_V_xc_sc,REF_V_hartree_sc,rho_reference,magn_reference
 #endif
-#if defined _SC
- use drivers,        ONLY:l_sc_magnetic
-#endif
+ !
 #include<memory.h>
  !
  type(levels)             :: E

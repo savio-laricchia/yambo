@@ -23,16 +23,18 @@
 !
 subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
  !
- use pars,           ONLY:SP,cZERO
- use electrons,      ONLY:levels,n_sp_pol,l_spin_orbit
+ use pars,           ONLY:DP,SP,cZERO
+ use electrons,      ONLY:levels,n_sp_pol,n_spin,l_spin_orbit
  use dipoles,        ONLY:DIPOLE_t,compute_P2_dipoles,P_square
  use QP_m,           ONLY:QP_nk
- use interfaces,     ONLY:WF_load
- use hamiltonian,    ONLY:Hzero,H_ref_bands,WF_G_max,WF_Go_indx,Hext_nl,Hext_loc!,E_reference
+ use interfaces,     ONLY:el_density_and_current,el_magnetization,WF_load
+ use hamiltonian,    ONLY:Hzero,H_ref_bands,WF_G_max,WF_Go_indx,Hext_nl,Hext_loc,&
+&                         V_hartree_sc,rho_n,magn_n!,E_reference
  use parallel_m,     ONLY:PAR_IND_WF_k
  use parallel_int,   ONLY:PP_redux_wait
  use wave_func,      ONLY:WF
  use R_lattice,      ONLY:bz_samp,nkibz
+ use D_lattice,      ONLY:DL_vol
  use timing_m,       ONLY:timing
  use pseudo,         ONLY:becp,pp_is_uspp,qe_atoms_map
  use uspp,           ONLY:nkb,ikb_i=>indv_ijkb0,deeq,deeq_nc
@@ -45,6 +47,9 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
  use IO_m,           ONLY:NONE,OP_RD_CL,REP,DUMP
  use gvect,          ONLY:ngm
  use stderr,         ONLY:intc
+#if defined _SC
+ use drivers,        ONLY:l_sc_run
+#endif
 #if defined _RT
  use drivers,        ONLY:l_real_time
 #endif
@@ -121,7 +126,11 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
      !
      Hext_loc=cZERO
      Hext_nl=cZERO
+     !
      do ib1=H_ref_bands(1),H_ref_bands(2)
+       !
+       Hzero(ib1,ib1,ik,i_sp_pol)=-E%E_fermi
+       !
        do ib2=H_ref_bands(1),H_ref_bands(2)
          !
          !
@@ -135,7 +144,8 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
          !
          ! Do I need to divide by 2 to convert from Ry to Ha ??
          Hext_loc(ib1,ib2) = Hext_loc(ib1,ib2) + &
-                             Vstar_dot_VV(fft_size,WF%c(:,i_sp_pol,i_wf1),vloc_full_r,WF%c(:,i_sp_pol,i_wf2))/2._SP
+                             Vstar_dot_VV(fft_size,WF%c(:,i_sp_pol,i_wf1),vloc_full_r,WF%c(:,i_sp_pol,i_wf2)) !&
+                             !&  /2._SP*real(fft_size,DP)/real(DL_vol,DP)
          !
          ! Calculate the nonlocal part of Hext ...
          !
@@ -219,7 +229,9 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
      do ib1=H_ref_bands(1),H_ref_bands(2)
        !write(*,*) "P2= ",P_square(ib1,:,ik,i_sp_pol)/2._SP
        !write(*,*) "Hl= ",Hext_loc(ib1,:)
-       !write(*,*)  Hext_nl(ib1,:)
+       !write(*,*) "Hn= ", Hext_nl(ib1,:)
+       !write(*,*) "H0= ",Hzero(ib1,:,ik,i_sp_pol)
+       !write(*,*) ""
        write(*,*) Hzero(ib1,:,ik,i_sp_pol)
        write(1,*) real(Hzero(ib1,:,ik,i_sp_pol))
        write(2,*) aimag(Hzero(ib1,:,ik,i_sp_pol))
@@ -243,6 +255,16 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
  close(1)
  close(2)
  write(*,*) "End of Direct hamiltonian "
+ !
+#if defined _SC
+ if(l_sc_run) then
+   call el_density_and_current(E,Xk,rho=rho_n,bands=H_ref_bands)
+   if(n_spin>1) call el_magnetization(E,Xk,magn_n,bands=H_ref_bands)
+ endif
+#endif
+ !
+ ! V_hartree
+ call V_Hartree(rho_n,V_hartree_sc)
  !
  call timing('Direct_Bare_Hamiltonian',OPR='stop')
  !
