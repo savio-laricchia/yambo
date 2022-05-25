@@ -128,9 +128,6 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
      Hext_nl=cZERO
      !
      do ib1=H_ref_bands(1),H_ref_bands(2)
-       !
-       Hzero(ib1,ib1,ik,i_sp_pol)=-E%E_fermi
-       !
        do ib2=H_ref_bands(1),H_ref_bands(2)
          !
          !
@@ -213,9 +210,16 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
        enddo
      enddo
      !
+     do ib1=H_ref_bands(1),H_ref_bands(2)
+       Hzero(ib1,ib1,ik,i_sp_pol)=-E%E_fermi
+     enddo
+     !
      !do ib1=H_ref_bands(1),H_ref_bands(2)
-       !write(*,*) Hext_nl(ib1,:)
-       !write(*,*) Hext_loc(ib1,:)
+     !  write(*,*) "P2= ",P_square(ib1,:,ik,i_sp_pol)/2._SP
+     !  write(*,*) "Hl= ",Hext_loc(ib1,:)
+     !  write(*,*) "Hn= ",Hext_nl(ib1,:)
+     !  write(*,*) "Ef= ",Hzero(ib1,:,ik,i_sp_pol)
+     !  write(*,*) ""
      !enddo
      !
      ! Fill Hzero
@@ -224,15 +228,11 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
      Hzero(:,:,ik,i_sp_pol) = Hzero(:,:,ik,i_sp_pol) & 
                               -P_square(:,:,ik,i_sp_pol)/2._SP + Hext_loc(:,:) + Hext_nl(:,:)
      !
+     !
      write(1,*) "#Re H_bare (ik,i_sp_pol) ",ik,i_sp_pol
      write(2,*) "#Im H_bare (ik,i_sp_pol) ",ik,i_sp_pol
      do ib1=H_ref_bands(1),H_ref_bands(2)
-       !write(*,*) "P2= ",P_square(ib1,:,ik,i_sp_pol)/2._SP
-       !write(*,*) "Hl= ",Hext_loc(ib1,:)
-       !write(*,*) "Hn= ", Hext_nl(ib1,:)
-       !write(*,*) "H0= ",Hzero(ib1,:,ik,i_sp_pol)
-       !write(*,*) ""
-       write(*,*) Hzero(ib1,:,ik,i_sp_pol)
+       write(*,*) "Ho= ",Hzero(ib1,:,ik,i_sp_pol)
        write(1,*) real(Hzero(ib1,:,ik,i_sp_pol))
        write(2,*) aimag(Hzero(ib1,:,ik,i_sp_pol))
      enddo
