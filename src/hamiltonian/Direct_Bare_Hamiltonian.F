@@ -202,11 +202,6 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
          !
          ! ikb and nkb are here just for debugging, may be removed
          if (ikb/=nkb) call error("[Pseudo Ham.] Something wrong in counting KB projectors and deeq")
-         !do ikb=1,nkb
-           !
-           !Hext_nl(ib1,ib2) = Hext_nl(ib1,ib2) + conjg(becp(ik,i_sp_pol)%k(ikb,ib1)) * becp(ik,i_sp_pol)%k(ikb,ib2)
-           !
-         !enddo
        enddo
      enddo
      !
@@ -215,10 +210,10 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
      enddo
      !
      !do ib1=H_ref_bands(1),H_ref_bands(2)
-     !  write(*,*) "P2= ",P_square(ib1,:,ik,i_sp_pol)/2._SP
-     !  write(*,*) "Hl= ",Hext_loc(ib1,:)
-     !  write(*,*) "Hn= ",Hext_nl(ib1,:)
-     !  write(*,*) "Ef= ",Hzero(ib1,:,ik,i_sp_pol)
+     !  write(*,*) "P2= ",-P_square(ib1,:,ik,i_sp_pol)/2._SP
+     !  write(*,*) "Hl= ", Hext_loc(ib1,:)
+     !  write(*,*) "Hn= ", Hext_nl(ib1,:)
+     !  write(*,*) "Ef= ", Hzero(ib1,:,ik,i_sp_pol)
      !  write(*,*) ""
      !enddo
      !
@@ -232,7 +227,7 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
      write(1,*) "#Re H_bare (ik,i_sp_pol) ",ik,i_sp_pol
      write(2,*) "#Im H_bare (ik,i_sp_pol) ",ik,i_sp_pol
      do ib1=H_ref_bands(1),H_ref_bands(2)
-       write(*,*) "Ho= ",Hzero(ib1,:,ik,i_sp_pol)
+       !write(*,*) "Ho= ",Hzero(ib1,:,ik,i_sp_pol)
        write(1,*) real(Hzero(ib1,:,ik,i_sp_pol))
        write(2,*) aimag(Hzero(ib1,:,ik,i_sp_pol))
      enddo
@@ -279,7 +274,7 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
     !
     ! Work space
     !
-    integer                   :: ig,ir
+    integer                   :: ig
     complex(DP), allocatable  :: vloc_aux(:)
     !
     allocate(vloc_aux(fft_size))
@@ -302,7 +297,7 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
     !
     !write (*,*) "Vloc(r):"
     !do ig=1,fft_size
-    !  write (*,*) vloc_aux(ig)
+    !  write (*,*) ig,vloc_aux(ig)
     !enddo
     !write (*,*) "End Vloc(r)"
     !
@@ -311,10 +306,6 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
     vloc_full_r = cmplx(vloc_aux,kind=SP)
     !
     deallocate(vloc_aux)
-    !
-    !do ir=1,fft_size
-    !  write(*,*) ir,vloc_full_r(ir)
-    !enddo
     !
     end subroutine FFT_vloc_G_to_R
     !
