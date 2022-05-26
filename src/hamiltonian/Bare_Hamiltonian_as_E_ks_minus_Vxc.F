@@ -21,7 +21,7 @@
 ! Software Foundation, Inc., 59 Temple Place - Suite 330,Boston,
 ! MA 02111-1307, USA or visit http://www.gnu.org/copyleft/gpl.txt.
 !
-subroutine Bare_Hamiltonian(E,Xk,k)
+subroutine Bare_Hamiltonian_as_E_ks_minus_Vxc(E,Xk,k)
  !
  use pars,           ONLY:cZERO
  use electrons,      ONLY:levels,n_sp_pol,spin,n_spin
@@ -55,7 +55,7 @@ subroutine Bare_Hamiltonian(E,Xk,k)
  !
  Hzero=cZERO
  !
- call timing('Bare_Hamiltonian',OPR='start')
+ call timing('Bare_Hamiltonian_as_E_ks_minus_Vxc',OPR='start')
  !
  ! [DEBUG>]
  open(1, file='REF_Hbare_real.dat')
@@ -186,8 +186,8 @@ subroutine Bare_Hamiltonian(E,Xk,k)
  !
  close(2)
  close(1)
- write (*,*) "End of Bare Hamiltonian "
+ write (*,*) "End of Bare Hamiltonian as E_ks-V_xc "
  !
- call timing('Bare_Hamiltonian',OPR='stop')
+ call timing('Bare_Hamiltonian_as_E_ks_minus_Vxc',OPR='stop')
  !
-end subroutine Bare_Hamiltonian
+end subroutine Bare_Hamiltonian_as_E_ks_minus_Vxc

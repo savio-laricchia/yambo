@@ -210,9 +210,9 @@ subroutine SC_driver(X,Xw,Xk,E,k,q,Dip)
  !
  ! [FP]
  if (l_use_p2_Vloc_becp) then 
-   call Direct_Bare_Hamiltonian(E,Xk,k,Dip)
+   call Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
  else
-   call Bare_Hamiltonian(E,Xk,k)
+   call Bare_Hamiltonian_as_E_ks_minus_Vxc(E,Xk,k)
  endif
  l_use_p2_Vloc_becp=.false.
  ! [FP]

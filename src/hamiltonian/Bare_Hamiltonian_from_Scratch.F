@@ -21,7 +21,7 @@
 ! Software Foundation, Inc., 59 Temple Place - Suite 330,Boston,
 ! MA 02111-1307, USA or visit http://www.gnu.org/copyleft/gpl.txt.
 !
-subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
+subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
  !
  use pars,           ONLY:DP,SP,cZERO
  use electrons,      ONLY:levels,n_sp_pol,n_spin,l_spin_orbit
@@ -77,7 +77,7 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
  Hext_nl =cZERO
  Hext_loc=cZERO
  !
- call timing('Direct_Bare_Hamiltonian',OPR='start')
+ call timing('Bare_Hamiltonian_from_Scratch',OPR='start')
  !
  if (pp_is_uspp) call error("[PPs] Currently, USPP not implemented for ED")
  !
@@ -249,7 +249,7 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
  !
  close(1)
  close(2)
- write(*,*) "End of Direct hamiltonian "
+ write(*,*) "End of Bare hamiltonian from scratch "
  !
 #if defined _SC
  if(l_sc_run) then
@@ -261,7 +261,7 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
  ! V_hartree
  call V_Hartree(rho_n,V_hartree_sc)
  !
- call timing('Direct_Bare_Hamiltonian',OPR='stop')
+ call timing('Bare_Hamiltonian_from_Scratch',OPR='stop')
  !
  contains
    !
@@ -305,4 +305,4 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
     !
     end subroutine FFT_vloc_G_to_R
     !
-end subroutine Direct_Bare_Hamiltonian
+end subroutine Bare_Hamiltonian_from_Scratch
