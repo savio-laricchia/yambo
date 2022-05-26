@@ -298,23 +298,15 @@ subroutine Direct_Bare_Hamiltonian(E,Xk,k,Dip)
     call fft_3d(vloc_aux,fft_dim,1)
 #endif
     !
-    ! [FP] BUG: vloc(r) actually has a non-negligible imaginary part!!!!
-    !
-    !write (*,*) "Vloc(r):"
-    !do ig=1,fft_size
-    !  write (*,*) vloc_aux(ig)
+    !do ir=1,fft_size
+    !  write(*,*) ir,vloc_aux(ir)
     !enddo
-    !write (*,*) "End Vloc(r)"
     !
-    ! Convert to single precision and real but keep complex type
-    ! even though vloc(r) is real, as required by Vstar_dot_VV
-    vloc_full_r = cmplx(vloc_aux,kind=SP)
+    ! Convert to single precision and take real part to remove noise 
+    ! but keep complex type even though vloc(r) is real, as required by Vstar_dot_VV
+    vloc_full_r = real(cmplx(vloc_aux,kind=SP))
     !
     deallocate(vloc_aux)
-    !
-    !do ir=1,fft_size
-    !  write(*,*) ir,vloc_full_r(ir)
-    !enddo
     !
     end subroutine FFT_vloc_G_to_R
     !
