@@ -142,7 +142,7 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
          ! Do I need to divide by 2 to convert from Ry to Ha ??
          Hext_loc(ib1,ib2) = Hext_loc(ib1,ib2) + &
                              Vstar_dot_VV(fft_size,WF%c(:,i_sp_pol,i_wf1),vloc_full_r,WF%c(:,i_sp_pol,i_wf2)) !&
-                             !&  /2._SP*real(fft_size,DP)/real(DL_vol,DP)
+                             !&  /2._SP
          !
          ! Calculate the nonlocal part of Hext ...
          !
@@ -205,9 +205,9 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
        enddo
      enddo
      !
-     do ib1=H_ref_bands(1),H_ref_bands(2)
-       Hzero(ib1,ib1,ik,i_sp_pol)=-E%E_fermi
-     enddo
+     !do ib1=H_ref_bands(1),H_ref_bands(2)
+     !  Hzero(ib1,ib1,ik,i_sp_pol)=-E%E_fermi
+     !enddo
      !
      !do ib1=H_ref_bands(1),H_ref_bands(2)
      !  write(*,*) "P2= ",-P_square(ib1,:,ik,i_sp_pol)/2._SP
