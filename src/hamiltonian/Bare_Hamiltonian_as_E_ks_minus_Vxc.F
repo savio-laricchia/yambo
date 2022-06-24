@@ -36,6 +36,7 @@ subroutine Bare_Hamiltonian_as_E_ks_minus_Vxc(E,Xk,k)
  use interfaces,     ONLY:el_density_and_current,el_magnetization,WF_load
  use H_interfaces,   ONLY:V_real_space_to_H
  use timing_m,       ONLY:timing
+ use parser_m,       ONLY:parser
 #if defined _SC
  use drivers,        ONLY:l_sc_run,l_sc_magnetic
 #endif
@@ -53,11 +54,15 @@ subroutine Bare_Hamiltonian_as_E_ks_minus_Vxc(E,Xk,k)
  !
  integer     :: ik,ib,i_sp_pol,WFbands(2)
  !
+ logical :: l_no_projectors
+ !
  Hzero=cZERO
  !
  call timing('Bare_Hamiltonian_as_E_ks_minus_Vxc',OPR='start')
  !
  ! [DEBUG>]
+ call parser('BareHNoProj',l_no_projectors)
+ !
  open(1, file='REF_Hbare_real.dat')
  open(2, file='REF_Hbare_imag.dat')
  ! [<DEBUG]
@@ -76,9 +81,12 @@ subroutine Bare_Hamiltonian_as_E_ks_minus_Vxc(E,Xk,k)
    !
    ! If exist the non local part of the pseudo then construct kbv
    !
-   call Pseudo_KB_G_to_R_space(k,E)
-   call Pseudo_Hamiltonian(Xk,E,.true.)
-   !call Pseudo_Hamiltonian(Xk,E,.false.)
+   ! [Debug option to be removed]
+   if (.not.l_no_projectors) then
+     call Pseudo_KB_G_to_R_space(k,E)
+     call Pseudo_Hamiltonian(Xk,E,.true.)
+     !call Pseudo_Hamiltonian(Xk,E,.false.)
+   endif
    !
  endif
  !

@@ -682,8 +682,11 @@ subroutine INIT_load(defs,en,q,k,X,Xw,Dip)
  call it('f',defs,'Mean_Potential','[SC] Real-space Mean Potential',verb_level=V_sc)
  call it('f',defs,'SCnlMix','[SC] Use SC non-local mixing',verb_level=V_sc)
  call it('f',defs,'FrozeDensity','[NL] Do not update density (for testing purposes)',verb_level=V_sc)
- ! [FP] TEST: to be removed
- call it('f',defs,'BareHfromScratch','Compute bare H_0 from scratch in k-space with p**2, Vloc and becp%k')
+ ! [FP]
+ call it('f',defs,'BareHfromScratch','Compute bare H_0 from scratch with p**2, Vloc and becp%k')
+ ! Debug flags: remove contributions from NL part of pseudos (only T + Vloc)
+ call it('f',defs,'BareHNoProj','Use zero KB projectors in H_0 calculation')
+ call it('f',defs,'BareHScaleFermi','Shift BareH matrix elements by Fermi energy')
  ! [FP]
  !
  ! SC [NEQ]

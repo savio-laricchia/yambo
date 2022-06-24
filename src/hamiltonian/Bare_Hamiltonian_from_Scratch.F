@@ -47,6 +47,7 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
  use IO_m,           ONLY:NONE,OP_RD_CL,REP,DUMP
  use gvect,          ONLY:ngm
  use stderr,         ONLY:intc
+ use parser_m,       ONLY:parser
 #if defined _SC
  use drivers,        ONLY:l_sc_run
 #endif
@@ -70,12 +71,19 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
  !
  ! Debug
  !
+ logical :: l_no_projectors, l_scale_fermi
+ !
  open(1, file='TEST_Hbare_real.dat')
  open(2, file='TEST_Hbare_imag.dat')
  !
  Hzero   =cZERO
  Hext_nl =cZERO
  Hext_loc=cZERO
+ !
+ l_no_projectors= .false.
+ l_scale_fermi=.false.
+ call parser('BareHNoProj',l_no_projectors)
+ call parser('BareHScaleFermi',l_scale_fermi)
  !
  call timing('Bare_Hamiltonian_from_Scratch',OPR='start')
  !
@@ -113,7 +121,7 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
  !
  ! Hzero = T + Hext = -P**2/2. + V_ext^loc + V_ext^nl
  !
- ! Hzero_n,m = -P_square(n,m)/2. + int_r [WF%c(r,n)]* Vloc(r) * WF%c(r,m)  + sum_ij [becp%k(i,n)]* D_ij * becp%k(j,m)
+ ! Hzero_n,m = P_square(n,m)/2. + int_r [WF%c(r,n)]* Vloc(r) * WF%c(r,m)  + sum_ij [becp%k(i,n)]* D_ij * becp%k(j,m)
  !
  !=======================================================================================================
  !
@@ -205,23 +213,32 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
        enddo
      enddo
      !
-     !do ib1=H_ref_bands(1),H_ref_bands(2)
-     !  Hzero(ib1,ib1,ik,i_sp_pol)=-E%E_fermi
-     !enddo
+     if (l_scale_fermi) then
+       !
+       do ib1=H_ref_bands(1),H_ref_bands(2)
+         Hzero(ib1,ib1,ik,i_sp_pol)=-E%E_fermi
+       enddo
+       !
+     endif
      !
-     !do ib1=H_ref_bands(1),H_ref_bands(2)
-     !  write(*,*) "P2= ",-P_square(ib1,:,ik,i_sp_pol)/2._SP
-     !  write(*,*) "Hl= ", Hext_loc(ib1,:)
-     !  write(*,*) "Hn= ", Hext_nl(ib1,:)
-     !  write(*,*) "Ef= ", Hzero(ib1,:,ik,i_sp_pol)
-     !  write(*,*) ""
-     !enddo
+     do ib1=H_ref_bands(1),H_ref_bands(2)
+       write(*,*) "P2= ", P_square(ib1,:,ik,i_sp_pol)/2._SP
+       write(*,*) "Hl= ", Hext_loc(ib1,:)
+       write(*,*) "Hn= ", Hext_nl(ib1,:)
+       if (l_scale_fermi) write(*,*) "Ef= ", Hzero(ib1,:,ik,i_sp_pol)
+       write(*,*) ""
+     enddo
      !
      ! Fill Hzero
      ! ==============
      !
-     Hzero(:,:,ik,i_sp_pol) = Hzero(:,:,ik,i_sp_pol) & 
-                              -P_square(:,:,ik,i_sp_pol)/2._SP + Hext_loc(:,:) + Hext_nl(:,:)
+     ! [Debug option to be removed]
+     if (.not.l_no_projectors) then
+       Hzero(:,:,ik,i_sp_pol) = Hzero(:,:,ik,i_sp_pol) & 
+                                +P_square(:,:,ik,i_sp_pol)/2._SP + Hext_loc(:,:) + Hext_nl(:,:)
+     else
+       Hzero(:,:,ik,i_sp_pol) = Hzero(:,:,ik,i_sp_pol) +P_square(:,:,ik,i_sp_pol)/2._SP + Hext_loc(:,:)
+     endif
      !
      !
      write(1,*) "#Re H_bare (ik,i_sp_pol) ",ik,i_sp_pol
