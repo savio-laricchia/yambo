@@ -235,9 +235,9 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
      ! [Debug option to be removed]
      if (.not.l_no_projectors) then
        Hzero(:,:,ik,i_sp_pol) = Hzero(:,:,ik,i_sp_pol) & 
-                                +P_square(:,:,ik,i_sp_pol)/2._SP + Hext_loc(:,:) + Hext_nl(:,:)
+                                +P_square(:,:,ik,i_sp_pol)/2._SP + Hext_loc(:,:)/2._SP + Hext_nl(:,:)
      else
-       Hzero(:,:,ik,i_sp_pol) = Hzero(:,:,ik,i_sp_pol) +P_square(:,:,ik,i_sp_pol)/2._SP + Hext_loc(:,:)
+       Hzero(:,:,ik,i_sp_pol) = Hzero(:,:,ik,i_sp_pol) +P_square(:,:,ik,i_sp_pol)/2._SP + Hext_loc(:,:)/2._SP
      endif
      !
      !
@@ -291,7 +291,7 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
     !
     ! Work space
     !
-    integer                   :: ig
+    integer                   :: ig,ir
     complex(DP), allocatable  :: vloc_aux(:)
     !
     allocate(vloc_aux(fft_size))
@@ -299,6 +299,7 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
     !$omp parallel do default(shared), private(ig)
     do ig=1,ngm
       vloc_aux(fft_g_table(ig,1))=vloc_full(ig)
+      !write(200,*) ig,real(vloc_full(ig)),aimag(vloc_full(ig))
     enddo
     !$omp end parallel do
     !
@@ -310,9 +311,11 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
     call fft_3d(vloc_aux,fft_dim,1)
 #endif
     !
+    ! DEBUG <
     !do ir=1,fft_size
-    !  write(*,*) ir,vloc_aux(ir)
+    !  write(100,*) ir,real(vloc_aux(ir)),aimag(vloc_aux(ir))
     !enddo
+    ! DEBUG >
     !
     ! Convert to single precision and take real part to remove noise 
     ! but keep complex type even though vloc(r) is real, as required by Vstar_dot_VV

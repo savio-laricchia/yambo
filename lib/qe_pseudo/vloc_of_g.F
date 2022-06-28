@@ -98,6 +98,7 @@ subroutine vloc_of_g (mesh, msh, rab, r, vloc_at, zp, tpiba2, ngl, &
      !
      ! [FP] QE esm and cutoff_2D for G<>0 go here.
      !
+     vlcp = vlcp - fac * exp ( - gl (igl) * tpiba2 * 0.25d0) / gl (igl)
      vloc (igl) = vlcp
   enddo
   vloc (:) = vloc(:) * fpi / omega
