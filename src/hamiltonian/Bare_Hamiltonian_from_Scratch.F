@@ -24,7 +24,7 @@
 subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
  !
  use pars,           ONLY:DP,SP,cZERO
- use electrons,      ONLY:levels,n_sp_pol,n_spin,l_spin_orbit
+ use electrons,      ONLY:levels,n_sp_pol,n_spin,l_spin_orbit,spin_occ
  use dipoles,        ONLY:DIPOLE_t,compute_P2_dipoles,P_square
  use QP_m,           ONLY:QP_nk
  use interfaces,     ONLY:el_density_and_current,el_magnetization,WF_load
@@ -186,14 +186,14 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
                      !
                      Hext_nl(ib1,ib2) = Hext_nl(ib1,ib2) + &
                                        conjg(becp(ik,i_sp_pol)%k(ikb_i(ia)+i1,ib1)) * &
-                                                 deeq_nc(i1,i2,ia_qe,i_sp_pol)/2._SP * &
+                                                      deeq_nc(i1,i2,ia_qe,i_sp_pol) * &
                                               becp(ik,i_sp_pol)%k(ikb_i(ia)+i2,ib2)
                      !
                    else
                      !
                      Hext_nl(ib1,ib2) = Hext_nl(ib1,ib2) + &
                                         conjg(becp(ik,i_sp_pol)%k(ikb_i(ia)+i1,ib1))* &
-                                                    deeq(i1,i2,ia_qe,i_sp_pol)/2._SP* &
+                                                         deeq(i1,i2,ia_qe,i_sp_pol) * &
                                               becp(ik,i_sp_pol)%k(ikb_i(ia)+i2,ib2)
                      !
                    endif
@@ -223,21 +223,24 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
      !
      do ib1=H_ref_bands(1),H_ref_bands(2)
        write(*,*) "P2= ", P_square(ib1,:,ik,i_sp_pol)/2._SP
-       write(*,*) "Hl= ", Hext_loc(ib1,:)
-       write(*,*) "Hn= ", Hext_nl(ib1,:)
+       write(*,*) "Hl= ", Hext_loc(ib1,:)/2._SP
+       write(*,*) "Hn= ", Hext_nl(ib1,:)/2._SP
        if (l_scale_fermi) write(*,*) "Ef= ", Hzero(ib1,:,ik,i_sp_pol)
        write(*,*) ""
      enddo
      !
      ! Fill Hzero
+     !
+     ! 0.5 factor in Hloc and Hnl is conversion from Ry to Ha
      ! ==============
      !
      ! [Debug option to be removed]
      if (.not.l_no_projectors) then
        Hzero(:,:,ik,i_sp_pol) = Hzero(:,:,ik,i_sp_pol) & 
-                                +P_square(:,:,ik,i_sp_pol)/2._SP + Hext_loc(:,:)/2._SP + Hext_nl(:,:)
+                                +( P_square(:,:,ik,i_sp_pol) + Hext_loc(:,:) + Hext_nl(:,:) )/2._SP
      else
-       Hzero(:,:,ik,i_sp_pol) = Hzero(:,:,ik,i_sp_pol) +P_square(:,:,ik,i_sp_pol)/2._SP + Hext_loc(:,:)/2._SP
+       Hzero(:,:,ik,i_sp_pol) = Hzero(:,:,ik,i_sp_pol) &
+                                +( P_square(:,:,ik,i_sp_pol) + Hext_loc(:,:) )/2._SP
      endif
      !
      !
