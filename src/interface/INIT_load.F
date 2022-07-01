@@ -684,8 +684,6 @@ subroutine INIT_load(defs,en,q,k,X,Xw,Dip)
  call it('f',defs,'FrozeDensity','[NL] Do not update density (for testing purposes)',verb_level=V_sc)
  ! [FP]
  call it('f',defs,'BareHfromScratch','Compute bare H_0 from scratch with p**2, Vloc and becp%k')
- ! Debug flags: remove contributions from NL part of pseudos (only T + Vloc)
- call it('f',defs,'BareHNoProj','Use zero KB projectors in H_0 calculation')
  call it('f',defs,'BareHScaleFermi','Shift BareH matrix elements by Fermi energy')
  ! [FP]
  !

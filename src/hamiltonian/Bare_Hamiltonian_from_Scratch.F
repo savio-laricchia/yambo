@@ -71,18 +71,17 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
  !
  ! Debug
  !
- logical :: l_no_projectors, l_scale_fermi
+ logical :: l_scale_fermi
  !
  open(1, file='TEST_Hbare_real.dat')
  open(2, file='TEST_Hbare_imag.dat')
+ open(3, file='Deeq.dat')
  !
  Hzero   =cZERO
  Hext_nl =cZERO
  Hext_loc=cZERO
  !
- l_no_projectors= .false.
  l_scale_fermi=.false.
- call parser('BareHNoProj',l_no_projectors)
  call parser('BareHScaleFermi',l_scale_fermi)
  !
  call timing('Bare_Hamiltonian_from_Scratch',OPR='start')
@@ -119,9 +118,9 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
  !
  ! Calculation of Hzero
  !
- ! Hzero = T + Hext = -P**2/2. + V_ext^loc + V_ext^nl
+ ! Hzero = T + Hext = P**2/2. + V_ext^loc + V_ext^nl
  !
- ! Hzero_n,m = P_square(n,m)/2. + int_r [WF%c(r,n)]* Vloc(r) * WF%c(r,m)  + sum_ij [becp%k(i,n)]* D_ij * becp%k(j,m)
+ ! Hzero_n,m = P_square(n,m)/2. + int_r [WF%c(r,n)]* Vloc(r) * WF%c(r,m)/2.  + sum_ij [becp%k(i,n)]* D_ij * becp%k(j,m)/2.
  !
  !=======================================================================================================
  !
@@ -149,8 +148,7 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
          !
          ! Do I need to divide by 2 to convert from Ry to Ha ??
          Hext_loc(ib1,ib2) = Hext_loc(ib1,ib2) + &
-                             Vstar_dot_VV(fft_size,WF%c(:,i_sp_pol,i_wf1),vloc_full_r,WF%c(:,i_sp_pol,i_wf2)) !&
-                             !&  /2._SP
+                             Vstar_dot_VV(fft_size,WF%c(:,i_sp_pol,i_wf1),vloc_full_r,WF%c(:,i_sp_pol,i_wf2))
          !
          ! Calculate the nonlocal part of Hext ...
          !
@@ -231,17 +229,13 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
      !
      ! Fill Hzero
      !
-     ! 0.5 factor in Hloc and Hnl is conversion from Ry to Ha
+     ! Note: 0.5 factor in Hloc and Hnl is conversion from Ry to Ha
+     ! Note: conjg(P2) is taken because P2 has swapped indices as per
+     !       comment in DIPOLE_p_matrix_elements
      ! ==============
      !
-     ! [Debug option to be removed]
-     if (.not.l_no_projectors) then
-       Hzero(:,:,ik,i_sp_pol) = Hzero(:,:,ik,i_sp_pol) & 
-                                +( P_square(:,:,ik,i_sp_pol) + Hext_loc(:,:) + Hext_nl(:,:) )/2._SP
-     else
-       Hzero(:,:,ik,i_sp_pol) = Hzero(:,:,ik,i_sp_pol) &
-                                +( P_square(:,:,ik,i_sp_pol) + Hext_loc(:,:) )/2._SP
-     endif
+     Hzero(:,:,ik,i_sp_pol) = Hzero(:,:,ik,i_sp_pol) & 
+                              +( conjg(P_square(:,:,ik,i_sp_pol)) + Hext_loc(:,:) + Hext_nl(:,:) )/2._SP
      !
      !
      write(1,*) "#Re H_bare (ik,i_sp_pol) ",ik,i_sp_pol
@@ -269,6 +263,7 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
  !
  close(1)
  close(2)
+ close(3)
  write(*,*) "End of Bare hamiltonian from scratch "
  !
 #if defined _SC
