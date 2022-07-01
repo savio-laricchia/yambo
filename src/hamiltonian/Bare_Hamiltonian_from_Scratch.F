@@ -299,10 +299,11 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
     !
     allocate(vloc_aux(fft_size))
     !
+    vloc_aux=cZERO
     !$omp parallel do default(shared), private(ig)
     do ig=1,ngm
       vloc_aux(fft_g_table(ig,1))=vloc_full(ig)
-      !write(200,*) ig,real(vloc_full(ig)),aimag(vloc_full(ig))
+      !write(201,*) ig,real(vloc_full(ig)),aimag(vloc_full(ig))
     enddo
     !$omp end parallel do
     !
@@ -316,7 +317,7 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
     !
     ! DEBUG <
     !do ir=1,fft_size
-    !  write(100,*) ir,real(vloc_aux(ir)),aimag(vloc_aux(ir))
+    !  write(101,*) ir,real(vloc_aux(ir)),aimag(vloc_aux(ir))
     !enddo
     ! DEBUG >
     !
