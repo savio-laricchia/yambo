@@ -2,7 +2,7 @@
 !        Copyright (C) 2000-2021 the YAMBO team
 !              http://www.yambo-code.org
 !
-! Authors (see AUTHORS file for details): AF, IM
+! Authors (see AUTHORS file for details): FP
 !
 ! This file is distributed under the terms of the GNU
 ! General Public License. You can redistribute it and/or
