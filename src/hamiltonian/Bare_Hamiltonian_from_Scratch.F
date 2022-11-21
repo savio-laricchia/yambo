@@ -114,7 +114,7 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
  allocate(vloc_full_r(fft_size))
  vloc_full_r=cZERO
  !
- call FFT_vloc_G_to_R()
+ call FFT_vloc_G_to_R(vloc_full_r)
  !
  ! Calculation of Hzero
  !
@@ -278,50 +278,4 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
  !
  call timing('Bare_Hamiltonian_from_Scratch',OPR='stop')
  !
- contains
-   !
-   subroutine FFT_vloc_G_to_R()
-    !
-    use pars,       ONLY:DP  
-    use vlocal,     ONLY:vloc_full
-    use fft_m,      ONLY:fft_dim,fftw_plan,fft_g_table
-    use gvect,      ONLY:ngm
-    !
-    ! Work space
-    !
-    integer                   :: ig,ir
-    complex(DP), allocatable  :: vloc_aux(:)
-    !
-    allocate(vloc_aux(fft_size))
-    !
-    vloc_aux=cZERO
-    !$omp parallel do default(shared), private(ig)
-    do ig=1,ngm
-      vloc_aux(fft_g_table(ig,1))=vloc_full(ig)
-      !write(201,*) ig,real(vloc_full(ig)),aimag(vloc_full(ig))
-    enddo
-    !$omp end parallel do
-    !
-#if defined _FFTW
-    call dfftw_destroy_plan(fftw_plan)
-    fftw_plan = 0
-    call fft_3d(vloc_aux,fft_dim,1,fftw_plan)
-#else
-    call fft_3d(vloc_aux,fft_dim,1)
-#endif
-    !
-    ! DEBUG <
-    !do ir=1,fft_size
-    !  write(101,*) ir,real(vloc_aux(ir)),aimag(vloc_aux(ir))
-    !enddo
-    ! DEBUG >
-    !
-    ! Convert to single precision and take real part to remove noise 
-    ! but keep complex type even though vloc(r) is real, as required by Vstar_dot_VV
-    vloc_full_r = real(cmplx(vloc_aux,kind=SP))
-    !
-    deallocate(vloc_aux)
-    !
-    end subroutine FFT_vloc_G_to_R
-    !
 end subroutine Bare_Hamiltonian_from_Scratch
