@@ -48,9 +48,9 @@ subroutine PARALLEL_global_defaults(ENVIRONMENT)
  !
  ! In the SLK case the default = nxn (with n=2,4,6)
  !
- if (ncpu>=4 ) n_par_la=4
- if (ncpu>=16) n_par_la=16
- if (ncpu>=36) n_par_la=36
+ if (ncpu>=8 ) n_par_la=4
+ if (ncpu>=32) n_par_la=16
+ if (ncpu>=64) n_par_la=36
  !
 #endif
  !
@@ -218,7 +218,7 @@ subroutine PARALLEL_global_defaults(ENVIRONMENT)
            !
            if (trim(PARALLEL_default_mode)=="workload")  CONDITION=VALS_sorted(i_v)>=maxval(VALS_sorted)
            if (trim(PARALLEL_default_mode)=="balanced")  CONDITION=.FALSE.
-           if (trim(PARALLEL_default_mode)=="memory")    CONDITION=.TRUE.
+           if (index(PARALLEL_default_mode,"memory")>0)  CONDITION=.TRUE.
            !
          enddo
        enddo
