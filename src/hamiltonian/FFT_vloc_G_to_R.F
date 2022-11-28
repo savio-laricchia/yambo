@@ -30,7 +30,7 @@ subroutine FFT_vloc_G_to_R(vloc_full_r)
   !
 #include<memory.h>
   !  
-  real(SP), intent(out) :: vloc_full_r(fft_size)
+  complex(SP), intent(out) :: vloc_full_r(fft_size)
   !
   ! Work space
   !
