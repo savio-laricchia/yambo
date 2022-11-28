@@ -104,8 +104,7 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
  ! (NB2: this calls vloc_alloc(), it is deallocated below) 
  !=====================================================================
  WFbands=(/H_ref_bands(1),max(H_ref_bands(2),maxval(E%nbm))/)
- call WF_load(WF,WF_G_max,WF_Go_indx,WFbands,(/1,nkibz/),title='-SC')
- if (WF_G_max/=ngm) call error('[FFT] FFT needs ng='//trim(intc(ngm))//' but has ng='//trim(intc(WF_G_max))//'')
+ call WF_load(WF,WF_G_max,WF_Go_indx,WFbands,(/1,nkibz/),title='-vloc')
  !
  ! FFT of vloc into real space
  !

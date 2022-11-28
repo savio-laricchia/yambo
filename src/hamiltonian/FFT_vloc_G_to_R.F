@@ -23,7 +23,10 @@
 !
 subroutine FFT_vloc_G_to_R(vloc_full_r)
   !
+  use com,        ONLY:msg
   use pars,       ONLY:DP,SP,cZERO
+  use stderr,     ONLY:intc
+  use R_lattice,  ONLY:ng_closed
   use vlocal,     ONLY:vloc_full
   use fft_m,      ONLY:fft_dim,fftw_plan,fft_g_table,fft_size
   use gvect,      ONLY:ngm
@@ -34,16 +37,26 @@ subroutine FFT_vloc_G_to_R(vloc_full_r)
   !
   ! Work space
   !
-  integer                   :: ig,ir
+  integer                   :: ig,ir,ng_aux
   complex(DP), allocatable  :: vloc_aux(:)
   !
   vloc_full_r=cZERO
   !
   YAMBO_ALLOC(vloc_aux,(fft_size))
   !
+  ng_aux=ngm
+  if (ngm>ng_closed) then 
+   !
+   ng_aux=ng_closed
+   call warning('[FFT-vloc] Using '//trim(intc(ng_aux))//' closed-shell Gvecs for FFT&
+& (vloc has '//trim(intc(ngm))//' total Gvecs).')
+   !
+  endif
+  !
   vloc_aux=cZERO
+  ! FFT up to ng_closed, other
   !$omp parallel do default(shared), private(ig)
-  do ig=1,ngm
+  do ig=1,ng_aux
     vloc_aux(fft_g_table(ig,1))=vloc_full(ig)
     !write(201,*) ig,real(vloc_full(ig)),aimag(vloc_full(ig))
   enddo
