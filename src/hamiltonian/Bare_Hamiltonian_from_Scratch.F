@@ -29,7 +29,7 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
  use QP_m,           ONLY:QP_nk
  use interfaces,     ONLY:el_density_and_current,el_magnetization,WF_load
  use hamiltonian,    ONLY:Hzero,H_ref_bands,WF_G_max,WF_Go_indx,Hext_nl,Hext_loc,&
-&                         V_hartree_sc,rho_n,magn_n!,E_reference
+&                         V_hartree_sc,rho_n,magn_n,H_alloc_real_space
  use parallel_m,     ONLY:PAR_IND_WF_k
  use parallel_int,   ONLY:PP_redux_wait
  use wave_func,      ONLY:WF
@@ -265,14 +265,23 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
  close(3)
  write(*,*) "End of Bare hamiltonian from scratch "
  !
+ !
+ ! Now calculating V_Hartree in real space. First density...
+ !
+ if ((.not.allocated(rho_n)).or.(size(rho_n)/=fft_size)) then
+  call H_alloc_real_space()
+ endif
+ !
+ call el_density_and_current(E,Xk,rho=rho_n,bands=H_ref_bands)
+ !
 #if defined _SC
  if(l_sc_run) then
-   call el_density_and_current(E,Xk,rho=rho_n,bands=H_ref_bands)
    if(n_spin>1) call el_magnetization(E,Xk,magn_n,bands=H_ref_bands)
  endif
 #endif
  !
- ! V_hartree
+ ! ... then potential
+ !
  call V_Hartree(rho_n,V_hartree_sc)
  !
  call timing('Bare_Hamiltonian_from_Scratch',OPR='stop')
