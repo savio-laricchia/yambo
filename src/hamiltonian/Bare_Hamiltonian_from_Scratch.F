@@ -23,7 +23,7 @@
 !
 subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
  !
- use pars,           ONLY:DP,SP,cZERO
+ use pars,           ONLY:DP,SP,cZERO,schlen,lchlen
  use electrons,      ONLY:levels,n_sp_pol,n_spin,l_spin_orbit,spin_occ
  use dipoles,        ONLY:DIPOLE_t,compute_P2_dipoles,P_square
  use QP_m,           ONLY:QP_nk
@@ -39,6 +39,7 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
  use pseudo,         ONLY:becp,pp_is_uspp,qe_atoms_map
  use uspp,           ONLY:nkb,ikb_i=>indv_ijkb0,deeq,deeq_nc
  use uspp_param,     ONLY:nh
+ use com,            ONLY:msg,of_open_close
  use ions_base,      ONLY:nat,ityp,ntyp=>nsp
  use vlocal,         ONLY:vloc_dealloc
  use wrapper,        ONLY:Vstar_dot_VV
@@ -66,12 +67,14 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
  integer     :: ik,ikb,ib1,ib2,i_sp_pol,WFbands(2),ia,it,i1,i2,ia_qe,ia_per_type
  integer     :: i_wf1,i_wf2,io_DIP_err,ID_DIP
  complex(SP), allocatable :: vloc_full_r(:)
+ character(schlen) :: Hsc_file,headings(6),msg_format
+ character(lchlen) :: msg_to_dump
  !
  integer, external :: io_DIPOLES
  !
  ! Debug
  !
- logical :: l_scale_fermi
+ logical :: l_scale_fermi,l_write_Hsc
  !
  open(1, file='TEST_Hbare_real.dat')
  open(2, file='TEST_Hbare_imag.dat')
@@ -83,6 +86,21 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
  !
  l_scale_fermi=.false.
  call parser('BareHScaleFermi',l_scale_fermi)
+ !
+ l_write_Hsc=.false.  
+ call parser('WriteHsc',l_write_Hsc) ! write Hamiltonian on file only for testing purpose 
+ !
+ if(l_write_Hsc) then
+   Hsc_file='H_sc'
+   call of_open_close(Hsc_file,'ot')
+   call msg('o '//Hsc_file,'#')
+   call msg('o '//Hsc_file,'# H-Bare Hamiltonian from scratch ') 
+   call msg('o '//Hsc_file,'#')
+   headings=(/'is_pol','kpt   ','bnd1  ','bnd2  ','Re[H] ','Img[H]'/)
+   call msg('o '//Hsc_file,'#',headings,INDENT=0,USE_TABS=.TRUE.)
+   call msg('o '//Hsc_file,'#')
+   msg_format='(4I7,2F16.10)'
+ endif
  !
  call timing('Bare_Hamiltonian_from_Scratch',OPR='start')
  !
@@ -239,8 +257,16 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
      !
      write(1,*) "#Re H_bare (ik,i_sp_pol) ",ik,i_sp_pol
      write(2,*) "#Im H_bare (ik,i_sp_pol) ",ik,i_sp_pol
+     if(l_write_Hsc) then
+       do ib1=H_ref_bands(1),H_ref_bands(2)
+         do ib2=H_ref_bands(1),H_ref_bands(2)
+           write(msg_to_dump,msg_format) i_sp_pol,ik,ib1,ib2,&
+&             real(Hzero(ib1,ib2,ik,i_sp_pol)),aimag(Hzero(ib1,ib2,ik,i_sp_pol))
+           call msg('o '//Hsc_file,msg_to_dump)
+         enddo
+       enddo
+     endif
      do ib1=H_ref_bands(1),H_ref_bands(2)
-       !write(*,*) "Ho= ",Hzero(ib1,:,ik,i_sp_pol)
        write(1,*) real(Hzero(ib1,:,ik,i_sp_pol))
        write(2,*) aimag(Hzero(ib1,:,ik,i_sp_pol))
      enddo
@@ -260,6 +286,7 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
  call vloc_dealloc() ! Dealloc here since we couldn't do it in PP_uspp_init 
  deallocate(vloc_full_r)
  !
+ if(l_write_Hsc) call of_open_close(Hsc_file)
  close(1)
  close(2)
  close(3)
@@ -268,9 +295,7 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
  !
  ! Now calculating V_Hartree in real space. First density...
  !
- if ((.not.allocated(rho_n)).or.(size(rho_n)/=fft_size)) then
-  call H_alloc_real_space()
- endif
+ if ((.not.allocated(rho_n)).or.(size(rho_n)/=fft_size)) call H_alloc_real_space()
  !
  call el_density_and_current(E,Xk,rho=rho_n,bands=H_ref_bands)
  !

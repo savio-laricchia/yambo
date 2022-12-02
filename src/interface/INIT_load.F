@@ -685,6 +685,8 @@ subroutine INIT_load(defs,en,q,k,X,Xw,Dip)
  ! [FP]
  call it('f',defs,'BareHfromScratch','Compute bare H_0 from scratch with p**2, Vloc and becp%k')
  call it('f',defs,'BareHScaleFermi','Shift BareH matrix elements by Fermi energy')
+ call it('f',defs,'WriteHsc','Print Hamiltonian matrix elements (for testing purpose)')
+ !
  ! [FP]
  !
  ! SC [NEQ]
