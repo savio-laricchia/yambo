@@ -76,9 +76,9 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
  !
  logical :: l_scale_fermi,l_write_Hsc
  !
- !open(1, file='TEST_Hbare_real.dat')
- !open(2, file='TEST_Hbare_imag.dat')
- !open(3, file='Deeq.dat')
+ open(1, file='TEST_Hbare_real.dat')
+ open(2, file='TEST_Hbare_imag.dat')
+ open(3, file='Deeq.dat')
  !
  Hzero   =cZERO
  Hext_nl =cZERO
@@ -255,8 +255,8 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
                               +( conjg(P_square(:,:,ik,i_sp_pol)) + Hext_loc(:,:) + Hext_nl(:,:) )/2._SP
      !
      !
-     !write(1,*) "#Re H_bare (ik,i_sp_pol) ",ik,i_sp_pol
-     !write(2,*) "#Im H_bare (ik,i_sp_pol) ",ik,i_sp_pol
+     write(1,*) "#Re H_bare (ik,i_sp_pol) ",ik,i_sp_pol
+     write(2,*) "#Im H_bare (ik,i_sp_pol) ",ik,i_sp_pol
      if(l_write_Hsc) then
        do ib1=H_ref_bands(1),H_ref_bands(2)
          do ib2=H_ref_bands(1),H_ref_bands(2)
@@ -266,10 +266,10 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
          enddo
        enddo
      endif
-     !do ib1=H_ref_bands(1),H_ref_bands(2)
-     !  write(1,*) real(Hzero(ib1,:,ik,i_sp_pol))
-     !  write(2,*) aimag(Hzero(ib1,:,ik,i_sp_pol))
-     !enddo
+     do ib1=H_ref_bands(1),H_ref_bands(2)
+       write(1,*) real(Hzero(ib1,:,ik,i_sp_pol))
+       write(2,*) aimag(Hzero(ib1,:,ik,i_sp_pol))
+     enddo
      !
 #if defined _RT
      if(l_real_time) then
@@ -287,9 +287,9 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
  deallocate(vloc_full_r)
  !
  if(l_write_Hsc) call of_open_close(Hsc_file)
- !close(1)
- !close(2)
- !close(3)
+ close(1)
+ close(2)
+ close(3)
  write(*,*) "End of Bare hamiltonian from scratch "
  !
  !

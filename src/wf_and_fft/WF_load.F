@@ -179,7 +179,7 @@ subroutine WF_load(WF,iG_in,iGo_max_in,bands_to_load,kpts_to_load,sp_pol_to_load
        !
        fft_dim=fft_dim_loaded
        fft_size=product(fft_dim)
-       return
+       if (.not.do_becp) return
      endif
    endif
    !
