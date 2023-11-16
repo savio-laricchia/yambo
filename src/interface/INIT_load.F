@@ -686,6 +686,12 @@ subroutine INIT_load(defs,en,q,k,X,Xw,Dip)
  !
  ! [FP]
  !
+ ! Bare H reconstruction
+ !
+ call it('f',defs,'BareHfromScratch','Compute bare H_0 from scratch with p**2, Vloc and becp%k')
+ call it('f',defs,'BareHScaleFermi','Shift BareH matrix elements by Fermi energy')
+ call it('f',defs,'WriteHsc','Print Hamiltonian matrix elements (for testing purposes, serial run)')
+ !
  ! SC [NEQ]
  !
  call it(defs,'SCneqKIND',  '[SC] Options are [contrained-occ/constrained-mu/matsubara]',SC_neq_kind,verb_level=V_sc)

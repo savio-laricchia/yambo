@@ -188,6 +188,7 @@ module hamiltonian
      YAMBO_FREE(V_xc_sc)
      YAMBO_FREE(V_hartree_sc)
      !
+     !stop 'check'
    end subroutine
    !
 end module

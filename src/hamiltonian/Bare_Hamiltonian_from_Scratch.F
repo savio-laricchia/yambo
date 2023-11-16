@@ -65,8 +65,9 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
  ! Work space
  !
  integer     :: ik,ikb,ib1,ib2,i_sp_pol,WFbands(2),ia,it,i1,i2,ia_qe,ia_per_type
- integer     :: i_wf1,i_wf2,io_DIP_err,ID_DIP
+ integer     :: i_wf1,i_wf2,io_DIP_err,ID_DIP,i_qp
  complex(SP), allocatable :: vloc_full_r(:)
+ character(schlen)  :: DIP_par_scheme
  character(schlen) :: Hsc_file,headings(6),msg_format
  character(lchlen) :: msg_to_dump
  !
@@ -78,7 +79,6 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
  !
  !open(1, file='TEST_Hbare_real.dat')
  !open(2, file='TEST_Hbare_imag.dat')
- !open(3, file='Deeq.dat')
  !
  Hzero   =cZERO
  Hext_nl =cZERO
@@ -104,24 +104,30 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
  !
  call timing('Bare_Hamiltonian_from_Scratch',OPR='start')
  !
- if (pp_is_uspp) call error("[PPs] Currently, USPP not implemented for ED")
+ if (pp_is_uspp) call error("[PPs] USPP not implemented for bare Hamiltonian reconstruction")
  !
  ! Read dipoles
  !
- ! NB: this is a workaround. In the final version this should be done externally
+ ! (NB : In the final version this may be done in a different subroutine)
+ ! (NB2: Incompatibility of DIP_par_scheme and DIPOLE_IO call in the present version
+ !       is the reason why SE parall. over q is turned off in XCo_driver)
  !=====================================================================
  if (.not.compute_P2_dipoles) call error("[DIP] P_square not activated")
  call DIPOLE_dimensions(E,Dip,H_ref_bands,(/0._SP,0._SP,0._SP/))
  !
- call DIPOLE_IO(k,E,Dip,'read',io_DIP_err,"SC")
+ DIP_par_scheme="K"
+ if(l_sc_run) DIP_par_scheme="SC"
+
+ call DIPOLE_IO(k,E,Dip,'read',io_DIP_err,DIP_par_scheme)
  if (.not.allocated(P_square)) call error("[DIP] P_square not found")
  !
  ! Load WF, compute Vloc and becp and setup FFT
  !
- ! (NB:  this turns pp_is_uspp to .true., later on it is restored to .false.)
+ ! (NB : this turns pp_is_uspp to .true., later on it is restored to .false.)
  ! (NB2: this calls vloc_alloc(), it is deallocated below) 
+ ! (NB3: quantities in real space [vlocal and VHartree] require loading all occupied states)
  !=====================================================================
- WFbands=(/H_ref_bands(1),max(H_ref_bands(2),maxval(E%nbm))/)
+ WFbands=(/1,max(H_ref_bands(2),maxval(E%nbm))/)
  call WF_load(WF,WF_G_max,WF_Go_indx,WFbands,(/1,nkibz/),title='-vloc')
  !
  ! FFT of vloc into real space
@@ -146,7 +152,7 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
    do ik=1,QP_nk
      !
      !write (*,*) "H_pseudo (ik,i_sp_pol) ",ik,i_sp_pol
-     write (*,*) "H_zero (ik,i_sp_pol) ",ik,i_sp_pol
+     !write (*,*) "H_zero (ik,i_sp_pol) ",ik,i_sp_pol
      !
      Hext_loc=cZERO
      Hext_nl=cZERO
@@ -163,7 +169,6 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
          i_wf2 = WF%index(ib2,ik,i_sp_pol)
          !
          !
-         ! Do I need to divide by 2 to convert from Ry to Ha ??
          Hext_loc(ib1,ib2) = Hext_loc(ib1,ib2) + &
                              Vstar_dot_VV(fft_size,WF%c(:,i_sp_pol,i_wf1),vloc_full_r,WF%c(:,i_sp_pol,i_wf2))
          !
@@ -236,13 +241,15 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
        !
      endif
      !
-     do ib1=H_ref_bands(1),H_ref_bands(2)
-       write(*,*) "P2= ", P_square(ib1,:,ik,i_sp_pol)/2._SP
-       write(*,*) "Hl= ", Hext_loc(ib1,:)/2._SP
-       write(*,*) "Hn= ", Hext_nl(ib1,:)/2._SP
-       if (l_scale_fermi) write(*,*) "Ef= ", Hzero(ib1,:,ik,i_sp_pol)
-       write(*,*) ""
-     enddo
+     ![DEBUG>]
+     !do ib1=H_ref_bands(1),H_ref_bands(2)
+      ! write(*,*) "P2= ", P_square(ib1,:,ik,i_sp_pol)/2._SP
+      ! write(*,*) "Hl= ", Hext_loc(ib1,:)/2._SP
+      ! write(*,*) "Hn= ", Hext_nl(ib1,:)/2._SP
+      ! if (l_scale_fermi) write(*,*) "Ef= ", Hzero(ib1,:,ik,i_sp_pol)
+      ! write(*,*) ""
+     !enddo
+     ![DEBUG<]
      !
      ! Fill Hzero
      !
@@ -281,7 +288,6 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
    !
  enddo
  !
- call PP_redux_wait(Hzero)
  pp_is_uspp=.false. 
  call vloc_dealloc() ! Dealloc here since we couldn't do it in PP_uspp_init 
  deallocate(vloc_full_r)
@@ -289,19 +295,18 @@ subroutine Bare_Hamiltonian_from_Scratch(E,Xk,k,Dip)
  if(l_write_Hsc) call of_open_close(Hsc_file)
  !close(1)
  !close(2)
- !close(3)
- write(*,*) "End of Bare hamiltonian from scratch "
+ !write(*,*) "End of Bare hamiltonian from scratch "
  !
  !
- ! Now calculating V_Hartree in real space. First density...
+ ! Now calculating V_Hartree in real space. First density [including all valence states]...
  !
  if ((.not.allocated(rho_n)).or.(size(rho_n)/=fft_size)) call H_alloc_real_space()
  !
- call el_density_and_current(E,Xk,rho=rho_n,bands=H_ref_bands)
+ call el_density_and_current(E,Xk,rho=rho_n,bands=(/1,H_ref_bands(2)/))
  !
 #if defined _SC
  if(l_sc_run) then
-   if(n_spin>1) call el_magnetization(E,Xk,magn_n,bands=H_ref_bands)
+   if(n_spin>1) call el_magnetization(E,Xk,magn_n,bands=(/1,H_ref_bands(2)/))
  endif
 #endif
  !
