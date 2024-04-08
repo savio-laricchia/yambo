@@ -49,6 +49,7 @@ subroutine DIPOLE_driver(Xen,Xk,Xq,Dip)
 #if defined _SLEPC && !defined _NL
  use BS_solvers,     ONLY:BSS_mode
 #endif
+ use com,            ONLY:exp_user
  !
  use timing_m,       ONLY:timing
  !
@@ -120,6 +121,14 @@ subroutine DIPOLE_driver(Xen,Xk,Xq,Dip)
    call warning(' Dipoles approach defined in input not recognised. Reverting to G-space v')
    use_g_space_approach = .true.
    Dip%approach='G-space v'
+ endif
+ !
+ ! If we have additional nonlocal contributions such as Hubbard U,
+ ! we need to switch to the covariant approach to capture them
+ if (l_Hbare.and..not.use_covariant_approach) then
+   if(.not.exp_user) call error(' Dipoles approach should be set to Covariant for BareH calculations')
+   if(     exp_user) call warning(' Dipoles approach should be set to Covariant for BareH calculations')
+   endif
  endif
  !
  call parser('PDirect'  ,Dip%force_v_g_space)
