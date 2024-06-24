@@ -5,6 +5,7 @@
  COLLISIONS_compose_nl.o
  COLLISIONS_compose_rt.o
  COLLISIONS_compose_sc.o
+ COLLISIONS_compress.o
  COLLISIONS_eval.o
  COLLISIONS_linearize_and_IO.o
  COLLISIONS_load.o
